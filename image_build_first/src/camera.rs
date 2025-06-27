@@ -27,7 +27,7 @@ impl Camera {
         }
         if let Some(rec) = world.hit(r, &Interval::new(0.001, rtweekend::INFINITY_F64)) {
             if let Some((scattered, attenuation)) = rec.mat.scatter(r, &rec) {
-                return attenuation * Camera::ray_color(&scattered, world, depth - 1)
+                return attenuation * Camera::ray_color(&scattered, world, depth - 1);
             }
             return Color::new(0.0, 0.0, 0.0);
         }

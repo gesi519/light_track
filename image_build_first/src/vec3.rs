@@ -41,6 +41,18 @@ impl Vec3 {
         v / v.length()
     }
 
+    pub fn reflect(v : Vec3, n : Vec3) -> Vec3 {
+        v - 2.0 * Vec3::dot(v,n) * n
+    }
+
+    //  计算光线折射，uv射入地方单位向量，n为法线，etai——zheshelv
+    pub fn refract(uv : &Vec3, n : Vec3, etai_over_etat : f64) -> Vec3 {
+        let cos_theta = Vec3::dot(-*uv, n).min(1.0);    //  确保不会超过 1.0（由于浮点误差）
+        let r_out_perp = etai_over_etat * (*uv + cos_theta * n);
+        let r_out_parallel = -(1.0 - r_out_perp.length_squared()).abs().sqrt() * n;
+        r_out_perp + r_out_parallel
+    }
+
     pub fn random() -> Vec3 {
         Vec3::new(rtweekend::random_double(), rtweekend::random_double(), rtweekend::random_double())
     } 
@@ -67,10 +79,6 @@ impl Vec3 {
         }else {
             -on_unit_sphere
         }
-    }
-
-    pub fn reflect(v : Vec3, n : Vec3) -> Vec3 {
-        v - 2.0 * Vec3::dot(v,n) * n
     }
 
     pub fn near_zero(&self) -> bool {
