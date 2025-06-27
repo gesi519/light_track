@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::io::{BufWriter, stdout};
 
 pub mod vec3;
-use crate::vec3::{Point3, Color};
+use crate::vec3::{Point3, Color, Vec3};
 
 pub mod hittable;
 pub mod rtweekend;
@@ -40,6 +40,10 @@ fn main() -> std::io::Result<()> {
     let mut cam = Camera::new(aspect_ratio, image_width);
     cam.sample_per_pixel = 100;
     cam.max_depth = 50;
+    cam.vfov = 20.0;
+    cam.lookfrom = Point3::new(-2.0, 2.0, 1.0);
+    cam.lookat = Point3::new(0.0, 0.0, -1.0);
+    cam.vup = Vec3::new(0.0, 1.0, 0.0);
 
     let stdout = stdout();                      // 获取 stdout 句柄
     let writer = BufWriter::new(stdout); 
