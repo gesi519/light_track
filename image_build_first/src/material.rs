@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 
+use crate::rtweekend::random_double;
 use crate::vec3::{Color,Vec3};
 use crate::hittable::HitRecord;
 use crate::ray::Ray;
@@ -68,6 +69,13 @@ impl Dielectric {
     pub fn new(refraction_index : f64) -> Self {
         Self { refraction_index: refraction_index }
     }
+
+    //  模拟现实中的玻璃材质模拟：随角度变化而折射率变化
+    fn reflectance(cosine : f64, refraction_index : f64) -> f64 {
+        let mut r0 = (1.0 - refraction_index) / (1.0 + refraction_index);
+        r0 = r0 * r0;
+        r0 + (1.0 - r0) * (1.0 - cosine).powi(5)
+    }
 }
 
 impl Material for Dielectric {
@@ -81,9 +89,9 @@ impl Material for Dielectric {
            
         let uint_direction = Vec3::unit_vector(*r_in.direction());
         let cos_theta = Vec3::dot(-uint_direction, rec.normal).min(1.0);
-        let sin_theta = (1.0 - cos_theta).sqrt();
+        let sin_theta = (1.0 - cos_theta * cos_theta).sqrt();
 
-        let direction = if ri * sin_theta > 1.0 {
+        let direction = if ri * sin_theta > 1.0 || Dielectric::reflectance(cos_theta, ri) > random_double() {
             Vec3::reflect(uint_direction, rec.normal)
         }else {
             Vec3::refract(&uint_direction, rec.normal, ri)
