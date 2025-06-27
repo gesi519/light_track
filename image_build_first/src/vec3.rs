@@ -2,7 +2,7 @@ use std::fmt;
 use std::ops::{Add, AddAssign, Sub, Neg, Mul, MulAssign, Div, DivAssign, Index, IndexMut};
 use std::io::{Write,Result};
 use crate::interval::Interval;
-use crate::rtweekend;
+use crate::rtweekend::{self, random_double_range};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Vec3 {
@@ -39,6 +39,15 @@ impl Vec3 {
 
     pub fn unit_vector(v : Vec3) -> Vec3 {
         v / v.length()
+    }
+
+    pub fn random_in_unit_disk() -> Vec3 {
+        loop {
+            let p = Vec3::new(random_double_range(-1.0, 1.0), random_double_range(-1.0, 1.0), 0.0);
+            if p.length_squared() < 1.0 {
+                return p;
+            }
+        }
     }
 
     pub fn reflect(v : Vec3, n : Vec3) -> Vec3 {

@@ -25,6 +25,10 @@ pub struct Camera {
     u : Vec3,
     v : Vec3,
     w : Vec3,
+    pub defocus_angle : f64,    //  每个像素射线的变化角度
+    pub focus_dist : f64,   //  从相机观察点到完全对焦平面的距离
+    defocus_disk_u : Vec3,  //  散焦圆盘的水平半径
+    defocus_disk_v : Vec3,  //  Defocus disk vertical radius
 }
 
 impl Camera {
@@ -63,6 +67,10 @@ impl Camera {
             u : Vec3::new(0.0, 0.0, 0.0),
             v : Vec3::new(0.0, 0.0, 0.0),
             w : Vec3::new(0.0, 0.0, 0.0),
+            defocus_angle : 0.0,
+            focus_dist : 10.0,
+            defocus_disk_u : Vec3::new(0.0, 0.0, 0.0),
+            defocus_disk_v : Vec3::new(0.0, 0.0, 0.0),
         }
     }
 
@@ -75,11 +83,10 @@ impl Camera {
 
         self.center = self.lookfrom;
 
-        let focal_length = (self.lookfrom - self.lookat).length();
         let theta = rtweekend::degrees_to_radians(self.vfov);
         let h = (theta / 2.0).tan();
 
-        let viewport_height = 2.0 * h * focal_length;
+        let viewport_height = 2.0 * h * self.focus_dist;
         let viewport_width : f64 = viewport_height * (self.image_width as f64/ self.image_height as f64);
 
         self.w = Vec3::unit_vector(self.lookfrom - self.lookat);
@@ -92,8 +99,12 @@ impl Camera {
         self.pixel_delta_u = viewport_u / self.image_width as f64;
         self.pixel_delta_v = viewport_v / self.image_height as f64;
 
-        let viewport_upper_left = self.center - focal_length * self.w - viewport_u / 2.0 - viewport_v / 2.0;
+        let viewport_upper_left = self.center - self.focus_dist * self.w - viewport_u / 2.0 - viewport_v / 2.0;
         self.pixel00_loc = viewport_upper_left + 0.5 * (self.pixel_delta_u + self.pixel_delta_v);
+
+        let defocus_radius = self.focus_dist * rtweekend::degrees_to_radians(self.defocus_angle / 2.0).tan();
+        self.defocus_disk_u = self.u * defocus_radius;
+        self.defocus_disk_v = self.v * defocus_radius;
     }
 
     pub fn render<W: Write>(&mut self, world : &dyn Hittable, mut writer : W)  -> std::io::Result<()> {
@@ -121,12 +132,17 @@ impl Camera {
     }
 
     pub fn get_ray(&self ,i : usize, j : usize) -> Ray {
+        // 构造一条相机射线，起点位于散焦圆盘上，方向指向像素位置 i，j 附近随机采样的点。
         let offset : Vec3 = Camera::sample_square();
         let pixel_sample = self.pixel00_loc + 
                                 ((i as f64+ offset.x()) * self.pixel_delta_u) + 
                                 ((j as f64+ offset.x()) * self.pixel_delta_v);
 
-        let ray_origin = self.center;
+        let ray_origin = if self.defocus_angle <= 0.0 {
+            self.center
+        }else {
+            Camera::disk_sample(&self)
+        };
         let ray_direction = pixel_sample - ray_origin;
 
         Ray { orig: ray_origin, dir: ray_direction }
@@ -134,6 +150,11 @@ impl Camera {
 
     pub fn sample_square() -> Vec3 {
         Vec3::new(random_double() - 0.5, random_double() - 0.5, 0.0)
+    }
+
+    pub fn disk_sample(&self) -> Point3 {
+        let p = Vec3::random_in_unit_disk();
+        self.center + p[0] * self.defocus_disk_u + p[1] * self.defocus_disk_v
     }
     
 }
