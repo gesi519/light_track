@@ -26,7 +26,7 @@ impl Vec3 {
         self.e[0] * self.e[0] + self.e[1] * self.e[1] + self.e[2] * self.e[2]
     }
 
-    pub fn dot(u : Vec3, v : Vec3) -> f64 {
+    pub fn dot(u : &Vec3, v : &Vec3) -> f64 {
         u.e[0]*v.e[0] + u.e[1]*v.e[1] + u.e[2]*v.e[2]
     }
 
@@ -37,8 +37,8 @@ impl Vec3 {
             )
     }
 
-    pub fn unit_vector(v : Vec3) -> Vec3 {
-        v / v.length()
+    pub fn unit_vector(v : &Vec3) -> Vec3 {
+        *v / v.length()
     }
 
     pub fn random_in_unit_disk() -> Vec3 {
@@ -50,13 +50,13 @@ impl Vec3 {
         }
     }
 
-    pub fn reflect(v : Vec3, n : Vec3) -> Vec3 {
-        v - 2.0 * Vec3::dot(v,n) * n
+    pub fn reflect(v : &Vec3, n : &Vec3) -> Vec3 {
+        *v - 2.0 * Vec3::dot(v,n) * *n
     }
 
     //  计算光线折射，uv射入地方单位向量，n为法线，etai——zheshelv
     pub fn refract(uv : &Vec3, n : Vec3, etai_over_etat : f64) -> Vec3 {
-        let cos_theta = Vec3::dot(-*uv, n).min(1.0);    //  确保不会超过 1.0（由于浮点误差）
+        let cos_theta = Vec3::dot(&-*uv, &n).min(1.0);    //  确保不会超过 1.0（由于浮点误差）
         let r_out_perp = etai_over_etat * (*uv + cos_theta * n);
         let r_out_parallel = -(1.0 - r_out_perp.length_squared()).abs().sqrt() * n;
         r_out_perp + r_out_parallel
@@ -83,7 +83,7 @@ impl Vec3 {
     //  返回一个在给定法线 normal 所指半球上的随机单位向量
     pub fn random_on_hemisphere(normal : &Vec3) -> Vec3 {
         let on_unit_sphere = Vec3::random_range(-1.0, 1.0);
-        if Vec3::dot(on_unit_sphere, *normal) > 0.0 {
+        if Vec3::dot(&on_unit_sphere, normal) > 0.0 {
             on_unit_sphere
         }else {
             -on_unit_sphere
@@ -207,7 +207,7 @@ impl Color {
         }
     }
 
-    pub fn write_color<W : Write>(writer : &mut W, pixel_color : Color) -> Result<()> {
+    pub fn write_color<W : Write>(writer : &mut W, pixel_color : &Color) -> Result<()> {
         let mut r = pixel_color.x();
         let mut g = pixel_color.y();
         let mut b = pixel_color.z();

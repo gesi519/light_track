@@ -6,7 +6,7 @@ pub const INFINITY_F64: f64 = f64::INFINITY;
 pub const PI_F64: f64 = PI;
 
 // 工具函数
-pub fn degrees_to_radians(degrees: f64) -> f64 {
+pub fn degrees_to_radians(degrees : f64) -> f64 {
     degrees * PI / 180.0
 }
 

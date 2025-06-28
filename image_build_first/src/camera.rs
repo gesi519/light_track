@@ -43,7 +43,7 @@ impl Camera {
             return Color::new(0.0, 0.0, 0.0);
         }
         
-        let unit_direction = Vec3::unit_vector(*r.direction());
+        let unit_direction = Vec3::unit_vector(r.direction());
         let a = 0.5 * (unit_direction.y() + 1.0);
         Color::new(1.0, 1.0, 1.0) * (1.0 - a) + Color::new(0.5, 0.7, 1.0) * a
     }
@@ -89,8 +89,8 @@ impl Camera {
         let viewport_height = 2.0 * h * self.focus_dist;
         let viewport_width : f64 = viewport_height * (self.image_width as f64/ self.image_height as f64);
 
-        self.w = Vec3::unit_vector(self.lookfrom - self.lookat);
-        self.u = Vec3::unit_vector(Vec3::cross(&self.vup, &self.w));
+        self.w = Vec3::unit_vector(&(self.lookfrom - self.lookat));
+        self.u = Vec3::unit_vector(&Vec3::cross(&self.vup, &self.w));
         self.v = Vec3::cross(&self.w, &self.u);
 
         let viewport_u = viewport_width * self.u;
@@ -124,7 +124,7 @@ impl Camera {
                     let r = self.get_ray(i, j);
                     pixel_color += Camera::ray_color(&r, world, self.max_depth);
                 }
-                Color::write_color(&mut writer, self.pixel_samples_scale * pixel_color)?;
+                Color::write_color(&mut writer, &(self.pixel_samples_scale * pixel_color))?;
             }
         }
         eprintln!("Done.                 \n");

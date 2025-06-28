@@ -17,7 +17,7 @@ pub struct Lambertian {
 }
 
 impl Lambertian {
-    pub fn new(albedo: Color) -> Self {
+    pub fn new(albedo : Color) -> Self {
         Self { albedo }
     }
 }
@@ -49,10 +49,10 @@ impl Metal {
 
 impl Material for Metal {
     fn scatter( &self, r_in : &Ray, rec : &HitRecord) -> Option<(Ray, Color)> {
-        let reflected1 = Vec3::reflect(*r_in.direction(), rec.normal);
-        let reflected = Vec3::unit_vector(reflected1) + self.fuzz * Vec3::random_unit_vector(); 
+        let reflected1 = Vec3::reflect(r_in.direction(), &rec.normal);
+        let reflected = Vec3::unit_vector(&reflected1) + self.fuzz * Vec3::random_unit_vector(); 
         let scattered = Ray::new(rec.p, reflected);
-        if Vec3::dot(*scattered.direction(), rec.normal) > 0.0 {
+        if Vec3::dot(scattered.direction(), &rec.normal) > 0.0 {
             Some((scattered, self.albedo))
         }else {
             None
@@ -87,12 +87,12 @@ impl Material for Dielectric {
             self.refraction_index
         };
            
-        let uint_direction = Vec3::unit_vector(*r_in.direction());
-        let cos_theta = Vec3::dot(-uint_direction, rec.normal).min(1.0);
+        let uint_direction = Vec3::unit_vector(r_in.direction());
+        let cos_theta = Vec3::dot(&(-uint_direction), &rec.normal).min(1.0);
         let sin_theta = (1.0 - cos_theta * cos_theta).sqrt();
 
         let direction = if ri * sin_theta > 1.0 || Dielectric::reflectance(cos_theta, ri) > random_double() {
-            Vec3::reflect(uint_direction, rec.normal)
+            Vec3::reflect(&uint_direction, &rec.normal)
         }else {
             Vec3::refract(&uint_direction, rec.normal, ri)
         };

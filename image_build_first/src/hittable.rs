@@ -18,12 +18,12 @@ pub struct HitRecord {
 }
 
 impl HitRecord {
-    pub fn set_face_normal(&mut self, r : &Ray, outward_normal : Vec3) {
-        self.front_face = Vec3::dot(*r.direction(), outward_normal) < 0.0;
+    pub fn set_face_normal(&mut self, r : &Ray, outward_normal : &Vec3) {
+        self.front_face = Vec3::dot(r.direction(), outward_normal) < 0.0;
         self.normal = if self.front_face {
-            outward_normal
+            *outward_normal
         }else {
-            -outward_normal
+            -*outward_normal
         };
     }
 }
@@ -47,7 +47,7 @@ impl Hittable for Sphere {
     fn hit(&self, r : &Ray, ray_t : &Interval) -> Option<HitRecord> {
         let oc = self.center - *r.origin();
         let a = r.direction().length_squared();
-        let h = Vec3::dot(*r.direction(),oc);
+        let h = Vec3::dot(r.direction(),&oc);
         let c = oc.length_squared() - self.radius * self.radius;
 
         let discriminant = h * h - a * c;
@@ -71,7 +71,7 @@ impl Hittable for Sphere {
         
         let mat = Arc::clone(&self.mat);
         let mut rec = HitRecord { p, normal, t : root, front_face : true, mat : mat };
-        rec.set_face_normal(r, outward_normal);
+        rec.set_face_normal(r, &outward_normal);
 
         Some(rec)
     }

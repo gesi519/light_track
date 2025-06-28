@@ -26,12 +26,12 @@ impl Ray {
 
 }
 
-pub fn hit_sphere(center : Point3, radius : f64, r : Ray) -> f64 {
-    let oc = center - *r.origin();
-    let a = Vec3::dot(*r.direction(), *r.direction());
+pub fn hit_sphere(center : &Point3, radius : f64, r : &Ray) -> f64 {
+    let oc = *center - *r.origin();
+    let a = Vec3::dot(r.direction(), r.direction());
     //  let b = -2.0 * Vec3::dot(*r.direction(), oc);
-    let h = Vec3::dot(*r.direction(), oc);
-    let c = Vec3::dot(oc, oc) - radius * radius;
+    let h = Vec3::dot(r.direction(), &oc);
+    let c = Vec3::dot(&oc, &oc) - radius * radius;
     //  let discriminant = b * b - 4.0 * a * c;
     let discriminant = h * h - a * c;
 
