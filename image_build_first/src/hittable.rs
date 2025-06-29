@@ -4,7 +4,7 @@ use crate::ray::Ray;
 use std::sync::Arc;
 use crate::interval::Interval;
 
-pub trait Hittable {
+pub trait Hittable : Send + Sync {
     fn hit(&self, r : &Ray, ray_t : &Interval) -> Option<HitRecord>;
 }
 

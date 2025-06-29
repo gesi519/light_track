@@ -4,9 +4,11 @@ use crate::vec3::{Color,Vec3,Point3};
 use crate::ray::Ray;
 use crate::interval::Interval;
 use crate::rtweekend::{self, random_double};
+use std::sync::{Arc, Mutex};
 
 use std::io::{Write,stderr};
 
+#[derive(Clone)]
 pub struct Camera {
     pub aspect_ratio : f64,
     pub image_width : usize,
@@ -107,26 +109,78 @@ impl Camera {
         self.defocus_disk_v = self.v * defocus_radius;
     }
 
-    pub fn render<W: Write>(&mut self, world : &dyn Hittable, mut writer : W)  -> std::io::Result<()> {
-        self.initialize();
-
+    pub fn render<W: Write + Send>(&self, world: Arc<dyn Hittable>, mut writer : W)  -> std::io::Result<()> {
         writeln!(writer,"P3")?;
         writeln!(writer,"{} {}", self.image_width, self.image_height)?;
         writeln!(writer,"255")?;
 
+        let framebuffer = Arc::new(Mutex::new(
+            vec![Color::new(0.0, 0.0, 0.0); self.image_width * self.image_height]
+        ));
+        let threads = 8;
+        let rows_per_thread = self.image_height / threads + 1;
 
-        for j in 0..self.image_height {
-            eprint!("Scanlines remaining: {}\n", self.image_height - j);
-            stderr().flush().unwrap();
-            for i in 0..self.image_width {
-                let mut pixel_color = Color::new(0.0, 0.0, 0.0);
-                for _sample in 0..self.sample_per_pixel {
-                    let r = self.get_ray(i, j);
-                    pixel_color += Camera::ray_color(&r, world, self.max_depth);
-                }
-                Color::write_color(&mut writer, &(self.pixel_samples_scale * pixel_color))?;
+        let width = self.image_width;
+        let height = self.image_height;
+
+        let max_depth = self.max_depth;
+
+        let camera_ptr = Arc::new(self.clone());
+
+        crossbeam::thread::scope(|s| {
+            for t in 0..threads {
+                let row_start = t * rows_per_thread;
+                let row_end = (row_start + rows_per_thread).min(height);
+
+                let fb = Arc::clone(&framebuffer);
+                let cam = Arc::clone(&camera_ptr);
+                let world = Arc::clone(&world);
+
+                s.spawn(move |_| {
+                    let mut local_buffer = vec![Color::new(0.0, 0.0, 0.0); (row_end - row_start) * width];
+                    for j in row_start..row_end {
+                        eprint!("Thread {} rendering line {}\n", t, j);
+                        stderr().flush().unwrap();
+
+                        for i in 0..width {
+                            let mut pixel_color = Color::new(0.0, 0.0, 0.0);
+                            for _sample in 0..cam.sample_per_pixel {
+                                let r = cam.get_ray(i, j);
+                                pixel_color += Camera::ray_color(&r, world.as_ref(), max_depth);
+                            }
+                            local_buffer[(j - row_start) * width + i] = cam.pixel_samples_scale * pixel_color;
+                        }
+                    }
+                    let mut fb_locked = fb.lock().unwrap();
+                    for j in row_start..row_end {
+                        for i in 0..width {
+                            fb_locked[j * width + i] = local_buffer[(j - row_start) * width + i];
+                        }
+                    }
+                });
+            }
+        }).unwrap();
+
+        for j in 0..height {
+            for i in 0..width {
+                let fb = framebuffer.lock().unwrap();
+                Color::write_color(&mut writer, &fb[j * width + i])?;
             }
         }
+        
+        // for j in 0..self.image_height {
+        //     eprint!("Scanlines remaining: {}\n", self.image_height - j);
+        //     stderr().flush().unwrap();
+        //     for i in 0..self.image_width {
+        //         let mut pixel_color = Color::new(0.0, 0.0, 0.0);
+        //         for _sample in 0..self.sample_per_pixel {
+        //             let r = self.get_ray(i, j);
+        //             pixel_color += Camera::ray_color(&r, world, self.max_depth);
+        //         }
+        //         Color::write_color(&mut writer, &(self.pixel_samples_scale * pixel_color))?;
+        //     }
+        // }
+
         eprintln!("Done.                 \n");
         Ok(())
     }

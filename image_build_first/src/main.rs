@@ -60,6 +60,8 @@ fn main() -> std::io::Result<()> {
 
     let material3 = Arc::new(Metal::new(Color::new(0.7, 0.6, 0.5), 0.0));
     world.add(Arc::new(Sphere::new(Point3::new(4.0, 1.0, 0.0), 1.0, material3)));
+
+    let world = Arc::new(world);
     // let material_ground = Arc::new(Lambertian::new(Color::new(0.8, 0.8, 0.0)));
     // let material_center = Arc::new(Lambertian::new(Color::new(0.1, 0.2, 0.5)));
     // let material_left   = Arc::new(Dielectric::new(1.50));
@@ -89,7 +91,8 @@ fn main() -> std::io::Result<()> {
 
     let stdout = stdout();                      // 获取 stdout 句柄
     let writer = BufWriter::new(stdout); 
-    cam.render(&world, writer)?;  
+    cam.initialize();
+    cam.render(world, writer)?;  
     Ok(())
 }
 
