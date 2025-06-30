@@ -217,7 +217,9 @@ impl Camera {
         };
         let ray_direction = pixel_sample - ray_origin;
 
-        Ray { orig: ray_origin, dir: ray_direction }
+        let ray_time = rtweekend::random_double();
+
+        Ray::new(ray_origin, ray_direction, ray_time)
     }
 
     pub fn sample_square() -> Vec3 {
