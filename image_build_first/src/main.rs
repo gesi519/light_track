@@ -12,11 +12,14 @@ pub mod camera;
 pub mod ray;
 pub mod material;
 pub mod sphere;
+pub mod AABB;
+pub mod bvh;
 use crate::camera::Camera;
 use crate::material::{Lambertian, Metal, Dielectric};
 
-use crate::hittable::{HittableList};
+use crate::hittable::{HittableList, Hittable};
 use crate::sphere::Sphere;
+use crate::bvh::BvhNode;
 
 
 fn main() -> std::io::Result<()> {
@@ -64,7 +67,8 @@ fn main() -> std::io::Result<()> {
     let material3 = Arc::new(Metal::new(Color::new(0.7, 0.6, 0.5), 0.0));
     world.add(Arc::new(Sphere::new_stationary(Point3::new(4.0, 1.0, 0.0), 1.0, material3)));
 
-    let world = Arc::new(world);
+    let bvh_root = Arc::new(BvhNode::new_from_list(&world));
+    let world = Arc::new(HittableList{objects : vec![bvh_root.clone()], bbox : bvh_root.bounding_box().clone() });
 
     let aspect_ratio : f64 = 16.0 / 9.0;
     let image_width : usize = 400;

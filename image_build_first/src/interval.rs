@@ -1,6 +1,6 @@
 //! # `interval.rs` 模块说明
 //!
-//! 该模块定义了一个实数区间 [`Interval`] 类型，用于表示数值范围 `[min, max]`。
+//! 该模块定义了一个实数区间 Interval 类型，用于表示数值范围 `[min, max]`。
 //!
 //! 区间广泛用于图形学中的各种计算中，比如：
 //! - 光线的合法交点范围（如 t ∈ [0.001, ∞)）
@@ -15,7 +15,7 @@
 //! - 获取区间大小
 //!
 
-use crate::rtweekend;
+use crate::{rtweekend};
 
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -63,6 +63,18 @@ impl Interval {
             self.max
         }else {
             x
+        }
+    }
+
+    pub fn expand(&self, delta : f64) -> Interval {
+        let padding = delta / 2.0;
+        Interval::new(self.min - padding, self.max + padding)
+    }
+
+    pub fn from_two(a: &Interval, b: &Interval) -> Self {
+        Self {
+            min: a.min.min(b.min),
+            max: a.max.max(b.max),
         }
     }
 }

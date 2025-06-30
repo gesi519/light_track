@@ -1,30 +1,45 @@
 use crate::hittable::{Hittable,HitRecord};
 use crate::ray::Ray;
-use crate::Arc;
+use crate::{Arc};
 use crate::material::Material;
 use crate::vec3::{Vec3,Point3};
 use crate::interval::Interval;
+use crate::AABB::Aabb;
 
 pub struct Sphere {
     pub center : Ray,
     pub radius : f64,
     mat: Arc<dyn Material>,
+    bbox : Aabb,
 }
 
 impl Sphere {
     pub fn new_stationary(center1 : Point3, radius1 : f64, mat : Arc<dyn Material>) -> Self {
-        Self {  center : Ray::from(center1, Vec3::new(0.0, 0.0, 0.0)),
-                radius : radius1.max(0.0),
-                mat    : mat,
-             }
+        let r = radius1.max(0.0);
+        let rvec = Vec3::new(r, r, r); // 向量形式的半径
+        let bbox = Aabb::from_points(center1 - rvec, center1 + rvec);
+
+        Self {
+            center: Ray::from(center1, Vec3::new(0.0, 0.0, 0.0)), // 表示静止球体
+            radius: r,
+            mat,
+            bbox,
+        }
     }
 
     // 创建运动球体
     pub fn new_moving(center1: Point3, center2: Point3, radius: f64, mat: Arc<dyn Material>) -> Self {
+        let r = radius.max(0.0);
+        let rvec = Vec3::new(r, r, r);
+        let box1 = Aabb::from_points(center1 - rvec, center1 + rvec);
+        let box2 = Aabb::from_points(center2 - rvec, center2 + rvec);
+        let bbox = Aabb::surrounding_box(&box1, &box2); // 合并两个时刻的 AABB
+
         Self {
-            center: Ray::from(center1, center2 - center1), // 线性运动
-            radius: radius.max(0.0),
+            center: Ray::from(center1, center2 - center1), // 方向向量代表运动速度
+            radius: r,
             mat,
+            bbox,
         }
     }
 }
@@ -61,5 +76,9 @@ impl Hittable for Sphere {
         rec.set_face_normal(r, &outward_normal);
 
         Some(rec)
+    }
+    
+    fn bounding_box(&self) -> Aabb {
+        self.bbox.clone()
     }
 }
