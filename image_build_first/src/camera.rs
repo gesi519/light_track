@@ -12,8 +12,8 @@ use std::sync::Condvar;
 
 use std::io::{Write};
 
-const HEIGHT_PARTITION: usize = 10;
-const WIDTH_PARTITION: usize = 10;
+const HEIGHT_PARTITION: usize = 20;
+const WIDTH_PARTITION: usize = 20;
 const THREAD_LIMIT: usize = 16;
 
 #[derive(Clone)]

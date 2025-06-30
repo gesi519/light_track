@@ -31,13 +31,13 @@ impl Interval {
         }
     }
 
-    pub fn empty() -> Self  {
+    pub const fn empty() -> Self  {
         Self {  min : rtweekend::INFINITY_F64,
                 max : -rtweekend::INFINITY_F64
         }
     }
 
-    pub fn universe() -> Self {
+    pub const fn universe() -> Self {
         Self {  min : -rtweekend::INFINITY_F64,
                 max : rtweekend::INFINITY_F64
 

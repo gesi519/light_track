@@ -23,7 +23,14 @@ impl BvhNode {
         start: usize,
         end: usize,
     ) -> Self {
-        let axis = rtweekend::random_int(0, 2);
+        let mut bbox = Aabb::empty();
+
+        // 计算当前范围内所有对象的包围盒的包围盒（合并包围盒）
+        for i in start..end {
+            bbox = Aabb::surrounding_box(&bbox, &objects[i].bounding_box());
+        }
+
+        let axis = bbox.longest_axis();
 
         let comparator = match axis {
             0 => Self::box_x_compare,
@@ -49,7 +56,7 @@ impl BvhNode {
                 (left, right)
             };
 
-            let bbox = Aabb::surrounding_box(&left.bounding_box(), &right.bounding_box());
+            bbox = Aabb::surrounding_box(&left.bounding_box(), &right.bounding_box());
 
             Self { left, right, bbox }
     }

@@ -21,8 +21,11 @@ use crate::hittable::{HittableList, Hittable};
 use crate::sphere::Sphere;
 use crate::bvh::BvhNode;
 
+use std::time::Instant;
 
 fn main() -> std::io::Result<()> {
+    let start = Instant::now();
+
     let mut world = HittableList::new();
 
     let ground_material = Arc::new(Lambertian::new(Color::new(0.5, 0.5, 0.5)));
@@ -71,11 +74,11 @@ fn main() -> std::io::Result<()> {
     let world = Arc::new(HittableList{objects : vec![bvh_root.clone()], bbox : bvh_root.bounding_box().clone() });
 
     let aspect_ratio : f64 = 16.0 / 9.0;
-    let image_width : usize = 400;
+    let image_width : usize = 1200;
 
     //  camera
     let mut cam = Camera::new(aspect_ratio, image_width);
-    cam.sample_per_pixel = 100;
+    cam.sample_per_pixel = 500;
     cam.max_depth = 50;
     cam.vfov = 20.0;
     cam.lookfrom = Point3::new(13.0, 2.0, 3.0);
@@ -89,6 +92,9 @@ fn main() -> std::io::Result<()> {
     let writer = BufWriter::new(stdout); 
     cam.initialize();
     cam.render(world, writer)?;  
+
+    let duration = start.elapsed();
+    eprintln!("运行时间: {:?}\n", duration);
     Ok(())
 }
 
