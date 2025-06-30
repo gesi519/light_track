@@ -4,9 +4,17 @@ use crate::vec3::{Color,Vec3,Point3};
 use crate::ray::Ray;
 use crate::interval::Interval;
 use crate::rtweekend::{self, random_double};
+use std::cmp::Ordering;
+use std::sync::atomic::Ordering as AtomicOrdering;
 use std::sync::{Arc, Mutex};
+use std::sync::atomic::AtomicUsize;
+use std::sync::Condvar;
 
-use std::io::{Write,stderr};
+use std::io::{Write};
+
+const HEIGHT_PARTITION: usize = 20;
+const WIDTH_PARTITION: usize = 20;
+const THREAD_LIMIT: usize = 16;
 
 #[derive(Clone)]
 pub struct Camera {
@@ -117,8 +125,6 @@ impl Camera {
         let framebuffer = Arc::new(Mutex::new(
             vec![Color::new(0.0, 0.0, 0.0); self.image_width * self.image_height]
         ));
-        let threads = 8;
-        let rows_per_thread = self.image_height / threads + 1;
 
         let width = self.image_width;
         let height = self.image_height;
@@ -127,37 +133,62 @@ impl Camera {
 
         let camera_ptr = Arc::new(self.clone());
 
+        let chunk_width = (self.image_width + WIDTH_PARTITION - 1) / WIDTH_PARTITION;
+        let chunk_height = (self.image_height + HEIGHT_PARTITION - 1) / HEIGHT_PARTITION;
+
+        // 控制线程数量
+        let thread_count = Arc::new(AtomicUsize::new(0));
+        let thread_control_mutex = Arc::new(Mutex::new(()));
+        let thread_control_cvar = Arc::new(Condvar::new());
+
         crossbeam::thread::scope(|s| {
-            for t in 0..threads {
-                let row_start = t * rows_per_thread;
-                let row_end = (row_start + rows_per_thread).min(height);
+            for by in 0..HEIGHT_PARTITION {
+                for bx in 0..WIDTH_PARTITION {
+                    {
+                        let mut lock = thread_control_mutex.lock().unwrap();
+                        while thread_count.load(AtomicOrdering::SeqCst) >= THREAD_LIMIT {
+                            lock = thread_control_cvar.wait(lock).unwrap();
+                        }
+                        thread_count.fetch_add(1, AtomicOrdering::SeqCst);
+                    }
 
-                let fb = Arc::clone(&framebuffer);
-                let cam = Arc::clone(&camera_ptr);
-                let world = Arc::clone(&world);
+                    let fb = Arc::clone(&framebuffer);
+                    let cam = Arc::clone(&camera_ptr);
+                    let world = Arc::clone(&world);
 
-                s.spawn(move |_| {
-                    let mut local_buffer = vec![Color::new(0.0, 0.0, 0.0); (row_end - row_start) * width];
-                    for j in row_start..row_end {
-                        eprint!("Thread {} rendering line {}\n", t, j);
-                        stderr().flush().unwrap();
+                    let thread_count = Arc::clone(&thread_count);
+                    let thread_control_cvar = Arc::clone(&thread_control_cvar);
+                    let thread_control_mutex = Arc::clone(&thread_control_mutex);
 
-                        for i in 0..width {
-                            let mut pixel_color = Color::new(0.0, 0.0, 0.0);
-                            for _sample in 0..cam.sample_per_pixel {
-                                let r = cam.get_ray(i, j);
-                                pixel_color += Camera::ray_color(&r, world.as_ref(), max_depth);
+                    let x_min = bx * chunk_width;
+                    let x_max = ((bx + 1) * chunk_width).min(width);
+                    let y_min = by * chunk_height;
+                    let y_max = ((by + 1) * chunk_height).min(height);
+
+                    s.spawn(move |_| {
+                        let mut local_buffer = vec![Color::new(0.0, 0.0, 0.0); (y_max - y_min) * (x_max - x_min)];
+                        for j in y_min..y_max {
+                            for i in x_min..x_max {
+                                let mut pixel_color = Color::new(0.0, 0.0, 0.0);
+                                for _sample in 0..cam.sample_per_pixel {
+                                    let r = cam.get_ray(i, j);
+                                    pixel_color += Camera::ray_color(&r, world.as_ref(), max_depth);
+                                }
+                                let idx = (j - y_min) * (x_max - x_min) + (i - x_min);
+                                local_buffer[idx] = cam.pixel_samples_scale * pixel_color;
                             }
-                            local_buffer[(j - row_start) * width + i] = cam.pixel_samples_scale * pixel_color;
                         }
-                    }
-                    let mut fb_locked = fb.lock().unwrap();
-                    for j in row_start..row_end {
-                        for i in 0..width {
-                            fb_locked[j * width + i] = local_buffer[(j - row_start) * width + i];
+                        let mut fb_locked = fb.lock().unwrap();
+                        for y in y_min..y_max {
+                            for x in x_min..x_max {
+                                let idx = (y - y_min) * (x_max - x_min) + (x - x_min);
+                                fb_locked[y * width + x] = local_buffer[idx];
+                            }
                         }
-                    }
-                });
+                        thread_count.fetch_sub(1, AtomicOrdering::SeqCst);
+                        thread_control_cvar.notify_one();
+                    });   
+                }
             }
         }).unwrap();
 
@@ -167,19 +198,6 @@ impl Camera {
                 Color::write_color(&mut writer, &fb[j * width + i])?;
             }
         }
-        
-        // for j in 0..self.image_height {
-        //     eprint!("Scanlines remaining: {}\n", self.image_height - j);
-        //     stderr().flush().unwrap();
-        //     for i in 0..self.image_width {
-        //         let mut pixel_color = Color::new(0.0, 0.0, 0.0);
-        //         for _sample in 0..self.sample_per_pixel {
-        //             let r = self.get_ray(i, j);
-        //             pixel_color += Camera::ray_color(&r, world, self.max_depth);
-        //         }
-        //         Color::write_color(&mut writer, &(self.pixel_samples_scale * pixel_color))?;
-        //     }
-        // }
 
         eprintln!("Done.                 \n");
         Ok(())
