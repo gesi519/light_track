@@ -37,8 +37,8 @@ fn main() -> std::io::Result<()> {
                     //  diffuse
                     let albedo = Color::random() * Color::random();
                     let sphere_material = Arc::new(Lambertian::new(albedo));
-                    //let center2 = center + Vec3::new(0.0, rtweekend::random_double_range(0.0, 0.5), 0.0);
-                    world.add(Arc::new(Sphere::new_stationary(center,0.2, sphere_material)));
+                    let center2 = center + Vec3::new(0.0, rtweekend::random_double_range(0.0, 0.5), 0.0);
+                    world.add(Arc::new(Sphere::new_moving(center, center2,0.2, sphere_material)));
                 }else if choose_mat < 0.95 {
                     //  matal
                     let albedo = Color::random_range(0.5, 1.0);

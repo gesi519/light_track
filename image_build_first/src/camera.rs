@@ -4,7 +4,7 @@ use crate::vec3::{Color,Vec3,Point3};
 use crate::ray::Ray;
 use crate::interval::Interval;
 use crate::rtweekend::{self, random_double};
-use std::cmp::Ordering;
+
 use std::sync::atomic::Ordering as AtomicOrdering;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::AtomicUsize;
@@ -12,8 +12,8 @@ use std::sync::Condvar;
 
 use std::io::{Write};
 
-const HEIGHT_PARTITION: usize = 20;
-const WIDTH_PARTITION: usize = 20;
+const HEIGHT_PARTITION: usize = 10;
+const WIDTH_PARTITION: usize = 10;
 const THREAD_LIMIT: usize = 16;
 
 #[derive(Clone)]
@@ -158,7 +158,7 @@ impl Camera {
 
                     let thread_count = Arc::clone(&thread_count);
                     let thread_control_cvar = Arc::clone(&thread_control_cvar);
-                    let thread_control_mutex = Arc::clone(&thread_control_mutex);
+                    let _thread_control_mutex = Arc::clone(&thread_control_mutex);
 
                     let x_min = bx * chunk_width;
                     let x_max = ((bx + 1) * chunk_width).min(width);
