@@ -208,7 +208,7 @@ impl Camera {
         let offset : Vec3 = Camera::sample_square();
         let pixel_sample = self.pixel00_loc + 
                                 ((i as f64+ offset.x()) * self.pixel_delta_u) + 
-                                ((j as f64+ offset.x()) * self.pixel_delta_v);
+                                ((j as f64+ offset.y()) * self.pixel_delta_v);
 
         let ray_origin = if self.defocus_angle <= 0.0 {
             self.center

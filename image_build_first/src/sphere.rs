@@ -79,10 +79,12 @@ impl Hittable for Sphere {
         let outward_normal = (p - current_center) / self.radius;
         
         let mat = Arc::clone(&self.mat);
-        let (u,v) = Self::get_sphere_uv(&outward_normal);
-        let mut rec = HitRecord { p, normal : Vec3::new(0.0, 0.0, 0.0), t : root, front_face : true, mat : mat, u : u, v : v };
+        
+        let mut rec = HitRecord { p, normal : Vec3::new(0.0, 0.0, 0.0), t : root, front_face : true, mat : mat, u : 0.0, v : 0.0 };
         rec.set_face_normal(r, &outward_normal);
-
+        let (u,v) = Self::get_sphere_uv(&outward_normal);
+        rec.u = u;
+        rec.v = v;
         Some(rec)
     }
     

@@ -4,6 +4,7 @@ use std::fmt::Debug;
 use crate::vec3::{Color, Point3};
 use crate::rtw_image::RtwImage;
 use crate::interval::Interval;
+use crate::perlin::Perlin;
 
 pub trait Texture : Debug + Send + Sync {
     fn value(&self, u: f64, v: f64, p: &Point3) -> Color;
@@ -99,5 +100,22 @@ impl Texture for ImageTexture {
 
         let color_scale = 1.0 / 255.0;
         Color::new(color_scale * pixel[0] as f64, color_scale * pixel[1] as f64, color_scale * pixel[2] as f64)
+    }
+}
+
+#[derive(Debug)]
+pub struct NoiseTexture {
+    noise : Perlin,
+}
+
+impl NoiseTexture {
+    pub fn new() -> Self {
+        Self { noise : Perlin::new() }
+    }
+}
+
+impl Texture for NoiseTexture {
+    fn value(&self, _u: f64, _v: f64, p: &Point3) -> Color {
+        Color::new(1.0, 1.0, 1.0) * self.noise.noise(p)
     }
 }

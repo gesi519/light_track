@@ -16,13 +16,14 @@ pub mod AABB;
 pub mod bvh;
 pub mod texture;
 pub mod rtw_image;
+pub mod perlin;
 use crate::camera::Camera;
 use crate::material::{Lambertian, Metal, Dielectric};
 
-use crate::hittable::{HittableList, Hittable};
+use crate::hittable::{HittableList};
 use crate::sphere::Sphere;
 use crate::bvh::BvhNode;
-use crate::texture::{CheckerTexture, ImageTexture};
+use crate::texture::{CheckerTexture, ImageTexture, NoiseTexture};
 
 use std::time::Instant;
 
@@ -30,11 +31,12 @@ fn main() -> std::io::Result<()> {
     // eprintln!("Current dir: {:?}\n", std::env::current_dir().unwrap());
     let start = Instant::now();
 
-    let _ = match 3 {
+    match 2 {
         2 => checker_spheres(),
         3 => earth(),
+        4 => perlin_spheres(),
         _ => bouncing_spheres(),
-    };
+    }?;
 
     let duration = start.elapsed();
     eprintln!("运行时间: {:?}\n", duration);
@@ -88,7 +90,7 @@ fn bouncing_spheres() -> Result<(), std::io::Error> {
     world.add(Arc::new(Sphere::new_stationary(Point3::new(4.0, 1.0, 0.0), 1.0, material3)));
 
     let bvh_root = Arc::new(BvhNode::new_from_list(&world));
-    let world = Arc::new(HittableList{objects : vec![bvh_root.clone()], bbox : bvh_root.bounding_box().clone() });
+    let world = bvh_root;
 
     let aspect_ratio : f64 = 16.0 / 9.0;
     let image_width : usize = 1200;
@@ -119,7 +121,7 @@ fn checker_spheres() -> Result<(), std::io::Error> {
     world.add(Arc::new(Sphere::new_stationary(Point3::new(0.0, 10.0, 0.0), 10.0, Arc::new(Lambertian::from_texture(checker)))));
 
     let bvh_root = Arc::new(BvhNode::new_from_list(&world));
-    let world = Arc::new(HittableList{objects : vec![bvh_root.clone()], bbox : bvh_root.bounding_box().clone() });
+    let world = bvh_root;
 
     let aspect_ratio : f64 = 16.0 / 9.0;
     let image_width : usize = 1200;
@@ -148,7 +150,7 @@ fn earth() -> Result<(), std::io::Error> {
     world.add(Arc::new(Sphere::new_stationary(Point3::new(0.0, 0.0, 0.0), 2.0, Arc::new(Lambertian::from_texture(earth_surface)))));
 
     let bvh_root = Arc::new(BvhNode::new_from_list(&world));
-    let world = Arc::new(HittableList{objects : vec![bvh_root.clone()], bbox : bvh_root.bounding_box().clone() });
+    let world = bvh_root;
 
     let aspect_ratio : f64 = 16.0 / 9.0;
     let image_width : usize = 400;
@@ -159,6 +161,37 @@ fn earth() -> Result<(), std::io::Error> {
     cam.max_depth = 50;
     cam.vfov = 20.0;
     cam.lookfrom = Point3::new(0.0, 0.0, 12.0);
+    cam.lookat = Point3::new(0.0, 0.0, 0.0);
+    cam.vup = Vec3::new(0.0, 1.0, 0.0);
+
+    cam.defocus_angle = 0.0;
+
+    let stdout = stdout();                      // 获取 stdout 句柄
+    let writer = BufWriter::new(stdout); 
+    cam.initialize();
+    cam.render(world, writer)?; 
+    Ok(())
+}
+
+fn perlin_spheres() -> Result<(), std::io::Error> {
+    let mut world = HittableList::new();
+
+    let pertext = Arc::new(NoiseTexture::new());
+    world.add(Arc::new(Sphere::new_stationary(Point3::new(0.0, -1000.0, 0.0), 1000.0, Arc::new(Lambertian::from_texture(pertext.clone())))));
+    world.add(Arc::new(Sphere::new_stationary(Point3::new(0.0, 2.0, 0.0), 2.0, Arc::new(Lambertian::from_texture(pertext)))));
+
+    let bvh_root = Arc::new(BvhNode::new_from_list(&world));
+    let world = bvh_root;
+
+    let aspect_ratio : f64 = 16.0 / 9.0;
+    let image_width : usize = 400;
+
+    //  camera
+    let mut cam = Camera::new(aspect_ratio, image_width);
+    cam.sample_per_pixel = 100;
+    cam.max_depth = 50;
+    cam.vfov = 20.0;
+    cam.lookfrom = Point3::new(13.0, 2.0, 3.0);
     cam.lookat = Point3::new(0.0, 0.0, 0.0);
     cam.vup = Vec3::new(0.0, 1.0, 0.0);
 
