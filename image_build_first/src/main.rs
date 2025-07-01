@@ -31,7 +31,7 @@ fn main() -> std::io::Result<()> {
     // eprintln!("Current dir: {:?}\n", std::env::current_dir().unwrap());
     let start = Instant::now();
 
-    match 2 {
+    match 4 {
         2 => checker_spheres(),
         3 => earth(),
         4 => perlin_spheres(),
@@ -176,7 +176,7 @@ fn earth() -> Result<(), std::io::Error> {
 fn perlin_spheres() -> Result<(), std::io::Error> {
     let mut world = HittableList::new();
 
-    let pertext = Arc::new(NoiseTexture::new());
+    let pertext = Arc::new(NoiseTexture::new(4.0));
     world.add(Arc::new(Sphere::new_stationary(Point3::new(0.0, -1000.0, 0.0), 1000.0, Arc::new(Lambertian::from_texture(pertext.clone())))));
     world.add(Arc::new(Sphere::new_stationary(Point3::new(0.0, 2.0, 0.0), 2.0, Arc::new(Lambertian::from_texture(pertext)))));
 
