@@ -1,6 +1,6 @@
 use crate::hittable::{Hittable,HitRecord};
 use crate::ray::Ray;
-use crate::{Arc};
+use crate::{rtweekend, Arc};
 use crate::material::Material;
 use crate::vec3::{Vec3,Point3};
 use crate::interval::Interval;
@@ -42,6 +42,13 @@ impl Sphere {
             bbox,
         }
     }
+
+    fn get_sphere_uv(p : &Point3) -> (f64, f64) {
+        let theta = (-p.y()).acos();
+        let phi = (-p.z()).atan2(p.x()) + rtweekend::PI_F64;
+
+        (phi / (2.0 * rtweekend::PI_F64), theta / rtweekend::PI_F64)
+    }
 }
 
 impl Hittable for Sphere {
@@ -72,7 +79,8 @@ impl Hittable for Sphere {
         let outward_normal = (p - current_center) / self.radius;
         
         let mat = Arc::clone(&self.mat);
-        let mut rec = HitRecord { p, normal : Vec3::new(0.0, 0.0, 0.0), t : root, front_face : true, mat : mat };
+        let (u,v) = Self::get_sphere_uv(&outward_normal);
+        let mut rec = HitRecord { p, normal : Vec3::new(0.0, 0.0, 0.0), t : root, front_face : true, mat : mat, u : u, v : v };
         rec.set_face_normal(r, &outward_normal);
 
         Some(rec)

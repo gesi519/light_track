@@ -18,6 +18,8 @@ pub struct HitRecord {
     pub t : f64,            // 命中的射线参数 t
     pub front_face : bool,  // 射线是否从外部命中物体
     pub mat: Arc<dyn Material>, 
+    pub u : f64,
+    pub v: f64,
 }
 
 impl HitRecord {

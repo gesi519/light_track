@@ -1,24 +1,30 @@
 use std::fmt::Debug;
+use std::sync::Arc;
 
 use crate::rtweekend::random_double;
 use crate::vec3::{Color,Vec3};
 use crate::hittable::HitRecord;
 use crate::ray::Ray;
+use crate::texture::{SolidColor, Texture};
 
 pub trait Material : Send + Sync + Debug {
-    fn scatter(&self, r_in: &Ray, rec: &HitRecord) -> Option<(Ray, Color)> {
+    fn scatter(&self, _r_in: &Ray, _rec: &HitRecord) -> Option<(Ray, Color)> {
         None
     }
 }
 
 #[derive(Debug)]
 pub struct Lambertian {
-    pub albedo : Color, //  反射率的比例
+    tex : Arc<dyn Texture + Send + Sync>,
 }
 
 impl Lambertian {
     pub fn new(albedo : Color) -> Self {
-        Self { albedo }
+        Self { tex : Arc::new(SolidColor::new(albedo)) }
+    }
+
+    pub fn from_texture(tex: Arc<dyn Texture + Send + Sync>) -> Self {
+        Self { tex }
     }
 }
 
@@ -31,7 +37,7 @@ impl Material for Lambertian {
         }
 
         let scattered = Ray::new(rec.p, scatter_direction, r_in.time());
-        Some((scattered, self.albedo))
+        Some((scattered, self.tex.value(rec.u, rec.v, &rec.p)))
     }
 }
 

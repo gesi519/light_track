@@ -14,22 +14,39 @@ pub mod material;
 pub mod sphere;
 pub mod AABB;
 pub mod bvh;
+pub mod texture;
+pub mod rtw_image;
 use crate::camera::Camera;
 use crate::material::{Lambertian, Metal, Dielectric};
 
 use crate::hittable::{HittableList, Hittable};
 use crate::sphere::Sphere;
 use crate::bvh::BvhNode;
+use crate::texture::{CheckerTexture, ImageTexture};
 
 use std::time::Instant;
 
 fn main() -> std::io::Result<()> {
+    // eprintln!("Current dir: {:?}\n", std::env::current_dir().unwrap());
     let start = Instant::now();
 
-    let mut world = HittableList::new();
+    let _ = match 3 {
+        2 => checker_spheres(),
+        3 => earth(),
+        _ => bouncing_spheres(),
+    };
 
-    let ground_material = Arc::new(Lambertian::new(Color::new(0.5, 0.5, 0.5)));
-    world.add(Arc::new(Sphere::new_stationary(Point3::new(0.0, -1000.0, 0.0), 1000.0, ground_material)));
+    let duration = start.elapsed();
+    eprintln!("运行时间: {:?}\n", duration);
+    Ok(())
+}
+
+fn bouncing_spheres() -> Result<(), std::io::Error> {
+    let mut world = HittableList::new();
+    let checker = Arc::new(CheckerTexture::from_colors(0.32, Color::new(0.2, 0.3, 0.1), Color::new(0.9, 0.9, 0.9)));
+    world.add(Arc::new(Sphere::new_stationary(Point3::new(0.0, -1000.0, 0.0), 1000.0, Arc::new(Lambertian::from_texture(checker)))));
+    // let ground_material = Arc::new(Lambertian::new(Color::new(0.5, 0.5, 0.5)));
+    // world.add(Arc::new(Sphere::new_stationary(Point3::new(0.0, -1000.0, 0.0), 1000.0, ground_material)));
 
     for a in -11..11 {
         for b in -11..11 {
@@ -92,10 +109,64 @@ fn main() -> std::io::Result<()> {
     let writer = BufWriter::new(stdout); 
     cam.initialize();
     cam.render(world, writer)?;  
-
-    let duration = start.elapsed();
-    eprintln!("运行时间: {:?}\n", duration);
     Ok(())
 }
 
+fn checker_spheres() -> Result<(), std::io::Error> {
+    let mut world = HittableList::new();
+    let checker = Arc::new(CheckerTexture::from_colors(0.32, Color::new(0.2, 0.3, 0.1), Color::new(0.9, 0.9, 0.9)));
+    world.add(Arc::new(Sphere::new_stationary(Point3::new(0.0, -10.0, 0.0), 10.0, Arc::new(Lambertian::from_texture(checker.clone())))));
+    world.add(Arc::new(Sphere::new_stationary(Point3::new(0.0, 10.0, 0.0), 10.0, Arc::new(Lambertian::from_texture(checker)))));
 
+    let bvh_root = Arc::new(BvhNode::new_from_list(&world));
+    let world = Arc::new(HittableList{objects : vec![bvh_root.clone()], bbox : bvh_root.bounding_box().clone() });
+
+    let aspect_ratio : f64 = 16.0 / 9.0;
+    let image_width : usize = 1200;
+
+    //  camera
+    let mut cam = Camera::new(aspect_ratio, image_width);
+    cam.sample_per_pixel = 500;
+    cam.max_depth = 50;
+    cam.vfov = 20.0;
+    cam.lookfrom = Point3::new(13.0, 2.0, 3.0);
+    cam.lookat = Point3::new(0.0, 0.0, 0.0);
+    cam.vup = Vec3::new(0.0, 1.0, 0.0);
+
+    cam.defocus_angle = 0.0;
+
+    let stdout = stdout();                      // 获取 stdout 句柄
+    let writer = BufWriter::new(stdout); 
+    cam.initialize();
+    cam.render(world, writer)?; 
+    Ok(())
+}
+
+fn earth() -> Result<(), std::io::Error> {
+    let mut world = HittableList::new();
+    let earth_surface = Arc::new(ImageTexture::new("earthmap.jpg"));
+    world.add(Arc::new(Sphere::new_stationary(Point3::new(0.0, 0.0, 0.0), 2.0, Arc::new(Lambertian::from_texture(earth_surface)))));
+
+    let bvh_root = Arc::new(BvhNode::new_from_list(&world));
+    let world = Arc::new(HittableList{objects : vec![bvh_root.clone()], bbox : bvh_root.bounding_box().clone() });
+
+    let aspect_ratio : f64 = 16.0 / 9.0;
+    let image_width : usize = 400;
+
+    //  camera
+    let mut cam = Camera::new(aspect_ratio, image_width);
+    cam.sample_per_pixel = 100;
+    cam.max_depth = 50;
+    cam.vfov = 20.0;
+    cam.lookfrom = Point3::new(0.0, 0.0, 12.0);
+    cam.lookat = Point3::new(0.0, 0.0, 0.0);
+    cam.vup = Vec3::new(0.0, 1.0, 0.0);
+
+    cam.defocus_angle = 0.0;
+
+    let stdout = stdout();                      // 获取 stdout 句柄
+    let writer = BufWriter::new(stdout); 
+    cam.initialize();
+    cam.render(world, writer)?; 
+    Ok(())
+}
