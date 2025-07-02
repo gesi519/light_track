@@ -17,6 +17,7 @@ pub mod bvh;
 pub mod texture;
 pub mod rtw_image;
 pub mod perlin;
+pub mod quad;
 use crate::camera::Camera;
 use crate::material::{Lambertian, Metal, Dielectric};
 
@@ -24,6 +25,7 @@ use crate::hittable::{HittableList};
 use crate::sphere::Sphere;
 use crate::bvh::BvhNode;
 use crate::texture::{CheckerTexture, ImageTexture, NoiseTexture};
+use crate::quad::Quad;
 
 use std::time::Instant;
 
@@ -31,10 +33,11 @@ fn main() -> std::io::Result<()> {
     // eprintln!("Current dir: {:?}\n", std::env::current_dir().unwrap());
     let start = Instant::now();
 
-    match 4 {
+    match 5 {
         2 => checker_spheres(),
         3 => earth(),
         4 => perlin_spheres(),
+        5 => quads(),
         _ => bouncing_spheres(),
     }?;
 
@@ -192,6 +195,45 @@ fn perlin_spheres() -> Result<(), std::io::Error> {
     cam.max_depth = 50;
     cam.vfov = 20.0;
     cam.lookfrom = Point3::new(13.0, 2.0, 3.0);
+    cam.lookat = Point3::new(0.0, 0.0, 0.0);
+    cam.vup = Vec3::new(0.0, 1.0, 0.0);
+
+    cam.defocus_angle = 0.0;
+
+    let stdout = stdout();                      // 获取 stdout 句柄
+    let writer = BufWriter::new(stdout); 
+    cam.initialize();
+    cam.render(world, writer)?; 
+    Ok(())
+}
+
+fn quads() -> std::io::Result<()> {
+    let mut world = HittableList::new();
+
+    let left_red = Arc::new(Lambertian::new(Color::new(1.0, 0.2, 0.2)));
+    let back_green = Arc::new(Lambertian::new(Color::new(0.2, 1.0, 0.2)));
+    let right_blue = Arc::new(Lambertian::new(Color::new(0.2, 0.2, 1.0)));
+    let upper_orange = Arc::new(Lambertian::new(Color::new(1.0, 0.5, 0.0)));
+    let lower_teal = Arc::new(Lambertian::new(Color::new(0.2, 0.8, 0.8)));
+
+    world.add(Arc::new(Quad::new(Point3::new(-3.0, -2.0, 5.0), Vec3::new(0.0, 0.0, -4.0), Vec3::new(0.0, 4.0, 0.0), left_red)));
+    world.add(Arc::new(Quad::new(Point3::new(-2.0, -2.0, 0.0), Vec3::new(4.0, 0.0, 0.0), Vec3::new(0.0, 4.0, 0.0), back_green)));
+    world.add(Arc::new(Quad::new(Point3::new(3.0, -2.0, 1.0), Vec3::new(0.0, 0.0, 4.0), Vec3::new(0.0, 4.0, 0.0), right_blue)));
+    world.add(Arc::new(Quad::new(Point3::new(-2.0, 3.0, 1.0), Vec3::new(4.0, 0.0, 0.0), Vec3::new(0.0, 0.0, 4.0), upper_orange)));
+    world.add(Arc::new(Quad::new(Point3::new(-2.0, -3.0, 5.0), Vec3::new(4.0, 0.0, 0.0), Vec3::new(0.0, 0.0, -4.0), lower_teal)));
+
+    let bvh_root = Arc::new(BvhNode::new_from_list(&world));
+    let world = bvh_root;
+
+    let aspect_ratio : f64 = 1.0;
+    let image_width : usize = 400;
+
+    //  camera
+    let mut cam = Camera::new(aspect_ratio, image_width);
+    cam.sample_per_pixel = 100;
+    cam.max_depth = 50;
+    cam.vfov = 80.0;
+    cam.lookfrom = Point3::new(0.0, 0.0, 9.0);
     cam.lookat = Point3::new(0.0, 0.0, 0.0);
     cam.vup = Vec3::new(0.0, 1.0, 0.0);
 

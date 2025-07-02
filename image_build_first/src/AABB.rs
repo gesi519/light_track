@@ -11,7 +11,9 @@ pub struct Aabb {
 
 impl Aabb {
     pub fn new(x : Interval, y : Interval, z : Interval,) -> Self {
-        Self {x, y, z : z}
+        let mut aabb_sort = Self {x, y, z : z};
+        aabb_sort.pad_to_minimums();
+        aabb_sort
     }
 
     pub fn new_empty() -> Self {
@@ -38,7 +40,9 @@ impl Aabb {
         } else {
             Interval::new(b.z(), a.z())
         };
-        Self { x, y, z }
+        let mut aabb = Self { x, y, z };
+        aabb.pad_to_minimums();
+        aabb
     }
 
     pub fn surrounding_box(box0 : &Aabb, box1 : &Aabb) -> Self {
@@ -110,6 +114,19 @@ impl Aabb {
             } else {
                 2
             }
+        }
+    }
+
+    fn pad_to_minimums(&mut self) {
+        let delta : f64 = 0.0001;
+        if self.x.size() < delta {
+            self.x = self.x.expand(delta);
+        }
+        if self.y.size() < delta {
+            self.y = self.y.expand(delta);
+        }
+        if self.z.size() < delta {
+            self.z = self.z.expand(delta);
         }
     }
 

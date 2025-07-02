@@ -42,7 +42,7 @@ impl HittableList {
     pub fn new() -> Self {
         Self {
             objects: Vec::new(),
-            bbox: Aabb::new_empty(), // 或 Aabb::default()
+            bbox: Aabb::empty(), // 或 Aabb::default()
         }
     }
 
