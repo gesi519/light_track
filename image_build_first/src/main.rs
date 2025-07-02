@@ -3,6 +3,7 @@ use std::sync::Arc;
 use std::io::{BufWriter, stdout};
 
 pub mod vec3;
+use crate::constant_medium::ConstantMedium;
 use crate::vec3::{Point3, Color, Vec3};
 
 pub mod hittable;
@@ -18,6 +19,7 @@ pub mod texture;
 pub mod rtw_image;
 pub mod perlin;
 pub mod quad;
+pub mod constant_medium;
 use crate::camera::Camera;
 use crate::material::{Dielectric, DiffuseLight, Lambertian, Metal};
 
@@ -33,7 +35,7 @@ fn main() -> std::io::Result<()> {
     // eprintln!("Current dir: {:?}\n", std::env::current_dir().unwrap());
     let start = Instant::now();
 
-    match 7 {
+    match 8 {
         1 => bouncing_spheres(),
         2 => checker_spheres(),
         3 => earth(),
@@ -41,6 +43,7 @@ fn main() -> std::io::Result<()> {
         5 => quads(),
         6 => simple_light(),
         7 => cornell_box(),
+        8 => cornell_smoke(),
         _ => bouncing_spheres(),
     }?;
 
@@ -316,6 +319,56 @@ fn cornell_box() -> std::io::Result<()> {
     let box2 = Arc::new(RotateY::new(box2, -18.0));
     let box2 = Arc::new(Translate::new(box2, Vec3::new(130.0, 0.0, 65.0)));
     world.add(box2);
+
+    let bvh_root = Arc::new(BvhNode::new_from_list(&world));
+    let world = bvh_root;
+
+    let aspect_ratio : f64 = 1.0;
+    let image_width : usize = 600;
+
+    //  camera
+    let mut cam = Camera::new(aspect_ratio, image_width);
+    cam.sample_per_pixel = 200;
+    cam.max_depth = 50;
+    cam.background = Color::new(0.0, 0.0, 0.0);
+    cam.vfov = 40.0;
+    cam.lookfrom = Point3::new(278.0, 278.0, -800.0);
+    cam.lookat = Point3::new(278.0, 278.0, 0.0);
+    cam.vup = Vec3::new(0.0, 1.0, 0.0);
+
+    cam.defocus_angle = 0.0;
+
+    let stdout = stdout();                      // 获取 stdout 句柄
+    let writer = BufWriter::new(stdout); 
+    cam.initialize();
+    cam.render(world, writer)?; 
+    Ok(())
+}
+
+fn cornell_smoke() -> Result<(), std::io::Error> {
+    let mut world = HittableList::new();
+
+    let red = Arc::new(Lambertian::new(Color::new(0.65, 0.05, 0.05)));
+    let white = Arc::new(Lambertian::new(Color::new(0.73, 0.73, 0.73)));
+    let green = Arc::new(Lambertian::new(Color::new(0.12, 0.45, 0.15)));
+    let lignt = Arc::new(DiffuseLight::from_color(Color::new(7.0, 7.0, 7.0)));
+
+    world.add(Arc::new(Quad::new(Point3::new(555.0, 0.0, 0.0), Vec3::new(0.0, 555.0, 0.0), Vec3::new(0.0, 0.0, 555.0), green)));
+    world.add(Arc::new(Quad::new(Point3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 555.0, 0.0), Vec3::new(0.0, 0.0, 555.0), red)));
+    world.add(Arc::new(Quad::new(Point3::new(113.0, 554.0, 127.0), Vec3::new(330.0, 0.0, 0.0), Vec3::new(0.0, 0.0, 305.0), lignt)));
+    world.add(Arc::new(Quad::new(Point3::new(0.0, 555.0, 0.0), Vec3::new(555.0, 0.0, 0.0), Vec3::new(0.0, 0.0, 555.0), white.clone())));
+    world.add(Arc::new(Quad::new(Point3::new(0.0, 0.0, 0.0), Vec3::new(555.0, 0.0, 0.0), Vec3::new(0.0, 0.0, 555.0), white.clone())));
+    world.add(Arc::new(Quad::new(Point3::new(0.0, 0.0, 555.0), Vec3::new(555.0, 0.0, 0.0), Vec3::new(0.0, 555.0, 0.0), white.clone())));
+
+    let box1 = Quad::make_box(&Point3::new(0.0, 0.0, 0.0), &Point3::new(165.0, 330.0, 165.0), white.clone());
+    let box1 = Arc::new(RotateY::new(box1, 15.0));
+    let box1 = Arc::new(Translate::new(box1, Vec3::new(265.0, 0.0, 295.0)));
+    world.add(Arc::new(ConstantMedium::new_with_color(box1, 0.01, Color::new(0.0, 0.0, 0.0))));
+
+    let box2 = Quad::make_box(&Point3::new(0.0, 0.0, 0.0), &Point3::new(165.0, 165.0, 165.0), white);
+    let box2 = Arc::new(RotateY::new(box2, -18.0));
+    let box2 = Arc::new(Translate::new(box2, Vec3::new(130.0, 0.0, 65.0)));
+    world.add(Arc::new(ConstantMedium::new_with_color(box2, 0.01, Color::new(1.0, 1.0, 1.0))));
 
     let bvh_root = Arc::new(BvhNode::new_from_list(&world));
     let world = bvh_root;
