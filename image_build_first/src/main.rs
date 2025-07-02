@@ -303,7 +303,10 @@ fn cornell_box() -> std::io::Result<()> {
     world.add(Arc::new(Quad::new(Point3::new(343.0, 554.0, 332.0), Vec3::new(-130.0, 0.0, 0.0), Vec3::new(0.0, 0.0, -105.0), lignt)));
     world.add(Arc::new(Quad::new(Point3::new(0.0, 0.0, 0.0), Vec3::new(555.0, 0.0, 0.0), Vec3::new(0.0, 0.0, 555.0), white.clone())));
     world.add(Arc::new(Quad::new(Point3::new(555.0, 555.0, 555.0), Vec3::new(-555.0, 0.0, 0.0), Vec3::new(0.0, 0.0, -555.0), white.clone())));
-    world.add(Arc::new(Quad::new(Point3::new(0.0, 0.0, 555.0), Vec3::new(555.0, 0.0, 0.0), Vec3::new(0.0, 555.0, 0.0), white)));
+    world.add(Arc::new(Quad::new(Point3::new(0.0, 0.0, 555.0), Vec3::new(555.0, 0.0, 0.0), Vec3::new(0.0, 555.0, 0.0), white.clone())));
+
+    world.add(Quad::make_box(&Point3::new(130.0, 0.0, 65.0), &Point3::new(295.0, 165.0, 230.0), white.clone()));
+    world.add(Quad::make_box(&Point3::new(265.0, 0.0, 295.0), &Point3::new(430.0, 330.0, 460.0), white));
 
     let bvh_root = Arc::new(BvhNode::new_from_list(&world));
     let world = bvh_root;
