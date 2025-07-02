@@ -2,7 +2,7 @@ use std::fmt::Debug;
 use std::sync::Arc;
 
 use crate::rtweekend::random_double;
-use crate::vec3::{Color,Vec3};
+use crate::vec3::{Color, Point3, Vec3};
 use crate::hittable::HitRecord;
 use crate::ray::Ray;
 use crate::texture::{SolidColor, Texture};
@@ -10,6 +10,10 @@ use crate::texture::{SolidColor, Texture};
 pub trait Material : Send + Sync + Debug {
     fn scatter(&self, _r_in: &Ray, _rec: &HitRecord) -> Option<(Ray, Color)> {
         None
+    }
+
+    fn emitted(&self, _u : f64, _v : f64, _p : &Point3) -> Color {
+        Color::new(0.0, 0.0, 0.0)
     }
 }
 
@@ -104,5 +108,28 @@ impl Material for Dielectric {
         };
         
         Some((Ray::new(rec.p, direction, r_in.time()),attenuation))
+    }
+}
+
+#[derive(Debug)]
+pub struct DiffuseLight {
+    tex : Arc<dyn Texture>,
+}
+
+impl DiffuseLight {
+    pub fn from_texture(tex: Arc<dyn Texture>) -> Self {
+        Self { tex }
+    }
+
+    pub fn from_color(c: Color) -> Self {
+        Self {
+            tex: Arc::new(SolidColor::new(c)),
+        }
+    }
+}
+
+impl Material for DiffuseLight {
+    fn emitted(&self, u : f64, v : f64, p : &Point3) -> Color {
+        self.tex.as_ref().value(u, v, p)
     }
 }

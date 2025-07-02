@@ -19,7 +19,7 @@ pub mod rtw_image;
 pub mod perlin;
 pub mod quad;
 use crate::camera::Camera;
-use crate::material::{Lambertian, Metal, Dielectric};
+use crate::material::{Dielectric, DiffuseLight, Lambertian, Metal};
 
 use crate::hittable::{HittableList};
 use crate::sphere::Sphere;
@@ -33,11 +33,14 @@ fn main() -> std::io::Result<()> {
     // eprintln!("Current dir: {:?}\n", std::env::current_dir().unwrap());
     let start = Instant::now();
 
-    match 5 {
+    match 7 {
+        1 => bouncing_spheres(),
         2 => checker_spheres(),
         3 => earth(),
         4 => perlin_spheres(),
         5 => quads(),
+        6 => simple_light(),
+        7 => cornell_box(),
         _ => bouncing_spheres(),
     }?;
 
@@ -102,6 +105,7 @@ fn bouncing_spheres() -> Result<(), std::io::Error> {
     let mut cam = Camera::new(aspect_ratio, image_width);
     cam.sample_per_pixel = 500;
     cam.max_depth = 50;
+    cam.background = Color::new(0.70, 0.80, 1.00);
     cam.vfov = 20.0;
     cam.lookfrom = Point3::new(13.0, 2.0, 3.0);
     cam.lookat = Point3::new(0.0, 0.0, 0.0);
@@ -133,6 +137,7 @@ fn checker_spheres() -> Result<(), std::io::Error> {
     let mut cam = Camera::new(aspect_ratio, image_width);
     cam.sample_per_pixel = 500;
     cam.max_depth = 50;
+    cam.background = Color::new(0.70, 0.80, 1.00);
     cam.vfov = 20.0;
     cam.lookfrom = Point3::new(13.0, 2.0, 3.0);
     cam.lookat = Point3::new(0.0, 0.0, 0.0);
@@ -162,6 +167,7 @@ fn earth() -> Result<(), std::io::Error> {
     let mut cam = Camera::new(aspect_ratio, image_width);
     cam.sample_per_pixel = 100;
     cam.max_depth = 50;
+    cam.background = Color::new(0.70, 0.80, 1.00);
     cam.vfov = 20.0;
     cam.lookfrom = Point3::new(0.0, 0.0, 12.0);
     cam.lookat = Point3::new(0.0, 0.0, 0.0);
@@ -193,6 +199,7 @@ fn perlin_spheres() -> Result<(), std::io::Error> {
     let mut cam = Camera::new(aspect_ratio, image_width);
     cam.sample_per_pixel = 100;
     cam.max_depth = 50;
+    cam.background = Color::new(0.70, 0.80, 1.00);
     cam.vfov = 20.0;
     cam.lookfrom = Point3::new(13.0, 2.0, 3.0);
     cam.lookat = Point3::new(0.0, 0.0, 0.0);
@@ -232,9 +239,86 @@ fn quads() -> std::io::Result<()> {
     let mut cam = Camera::new(aspect_ratio, image_width);
     cam.sample_per_pixel = 100;
     cam.max_depth = 50;
+    cam.background = Color::new(0.70, 0.80, 1.00);
     cam.vfov = 80.0;
     cam.lookfrom = Point3::new(0.0, 0.0, 9.0);
     cam.lookat = Point3::new(0.0, 0.0, 0.0);
+    cam.vup = Vec3::new(0.0, 1.0, 0.0);
+
+    cam.defocus_angle = 0.0;
+
+    let stdout = stdout();                      // 获取 stdout 句柄
+    let writer = BufWriter::new(stdout); 
+    cam.initialize();
+    cam.render(world, writer)?; 
+    Ok(())
+}
+
+fn simple_light() -> std::io::Result<()> {
+    let mut world = HittableList::new();
+
+    let pertext = Arc::new(NoiseTexture::new(4.0));
+    world.add(Arc::new(Sphere::new_stationary(Point3::new(0.0, -1000.0, 0.0), 1000.0, Arc::new(Lambertian::from_texture(pertext.clone())))));
+    world.add(Arc::new(Sphere::new_stationary(Point3::new(0.0, 2.0, 0.0), 2.0, Arc::new(Lambertian::from_texture(pertext)))));
+
+    let difflight = Arc::new(DiffuseLight::from_color(Color::new(4.0, 4.0, 4.0)));
+    world.add(Arc::new(Sphere::new_stationary(Point3::new(0.0, 7.0, 0.0), 2.0, difflight.clone())));
+    world.add(Arc::new(Quad::new(Point3::new(3.0, 1.0, -2.0), Vec3::new(2.0, 0.0, 0.0), Vec3::new(0.0, 2.0, 0.0), difflight)));
+
+    let bvh_root = Arc::new(BvhNode::new_from_list(&world));
+    let world = bvh_root;
+
+    let aspect_ratio : f64 = 16.0/9.0;
+    let image_width : usize = 400;
+
+    //  camera
+    let mut cam = Camera::new(aspect_ratio, image_width);
+    cam.sample_per_pixel = 100;
+    cam.max_depth = 50;
+    cam.background = Color::new(0.0, 0.0, 0.0);
+    cam.vfov = 20.0;
+    cam.lookfrom = Point3::new(26.0, 3.0, 6.0);
+    cam.lookat = Point3::new(0.0, 2.0, 0.0);
+    cam.vup = Vec3::new(0.0, 1.0, 0.0);
+
+    cam.defocus_angle = 0.0;
+
+    let stdout = stdout();                      // 获取 stdout 句柄
+    let writer = BufWriter::new(stdout); 
+    cam.initialize();
+    cam.render(world, writer)?; 
+    Ok(())
+}
+
+fn cornell_box() -> std::io::Result<()> {
+    let mut world = HittableList::new();
+
+    let red = Arc::new(Lambertian::new(Color::new(0.65, 0.05, 0.05)));
+    let white = Arc::new(Lambertian::new(Color::new(0.73, 0.73, 0.73)));
+    let green = Arc::new(Lambertian::new(Color::new(0.12, 0.45, 0.15)));
+    let lignt = Arc::new(DiffuseLight::from_color(Color::new(15.0, 15.0, 15.0)));
+
+    world.add(Arc::new(Quad::new(Point3::new(555.0, 0.0, 0.0), Vec3::new(0.0, 555.0, 0.0), Vec3::new(0.0, 0.0, 555.0), green)));
+    world.add(Arc::new(Quad::new(Point3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 555.0, 0.0), Vec3::new(0.0, 0.0, 555.0), red)));
+    world.add(Arc::new(Quad::new(Point3::new(343.0, 554.0, 332.0), Vec3::new(-130.0, 0.0, 0.0), Vec3::new(0.0, 0.0, -105.0), lignt)));
+    world.add(Arc::new(Quad::new(Point3::new(0.0, 0.0, 0.0), Vec3::new(555.0, 0.0, 0.0), Vec3::new(0.0, 0.0, 555.0), white.clone())));
+    world.add(Arc::new(Quad::new(Point3::new(555.0, 555.0, 555.0), Vec3::new(-555.0, 0.0, 0.0), Vec3::new(0.0, 0.0, -555.0), white.clone())));
+    world.add(Arc::new(Quad::new(Point3::new(0.0, 0.0, 555.0), Vec3::new(555.0, 0.0, 0.0), Vec3::new(0.0, 555.0, 0.0), white)));
+
+    let bvh_root = Arc::new(BvhNode::new_from_list(&world));
+    let world = bvh_root;
+
+    let aspect_ratio : f64 = 1.0;
+    let image_width : usize = 600;
+
+    //  camera
+    let mut cam = Camera::new(aspect_ratio, image_width);
+    cam.sample_per_pixel = 200;
+    cam.max_depth = 50;
+    cam.background = Color::new(0.0, 0.0, 0.0);
+    cam.vfov = 40.0;
+    cam.lookfrom = Point3::new(278.0, 278.0, -800.0);
+    cam.lookat = Point3::new(278.0, 278.0, 0.0);
     cam.vup = Vec3::new(0.0, 1.0, 0.0);
 
     cam.defocus_angle = 0.0;

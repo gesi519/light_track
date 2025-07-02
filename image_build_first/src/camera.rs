@@ -39,23 +39,37 @@ pub struct Camera {
     pub focus_dist : f64,   //  从相机观察点到完全对焦平面的距离
     defocus_disk_u : Vec3,  //  散焦圆盘的水平半径
     defocus_disk_v : Vec3,  //  Defocus disk vertical radius
+    pub background : Color,  // 场景背景
 }
 
 impl Camera {
-    pub fn ray_color(r : &Ray, world : &dyn Hittable, depth : usize) -> Color {
+    pub fn ray_color(r : &Ray, world : &dyn Hittable, depth : usize, background : &Color) -> Color {
         if depth <= 0 {
             return Color::new(0.0, 0.0, 0.0);
         }
-        if let Some(rec) = world.hit(r, &Interval::new(0.001, rtweekend::INFINITY_F64)) {
-            if let Some((scattered, attenuation)) = rec.mat.scatter(r, &rec) {
-                return attenuation * Camera::ray_color(&scattered, world, depth - 1);
-            }
-            return Color::new(0.0, 0.0, 0.0);
-        }
+        // if let Some(rec) = world.hit(r, &Interval::new(0.001, rtweekend::INFINITY_F64)) {
+        //     if let Some((scattered, attenuation)) = rec.mat.scatter(r, &rec) {
+        //         return attenuation * Camera::ray_color(&scattered, world, depth - 1);
+        //     }
+        //     return Color::new(0.0, 0.0, 0.0);
+        // }
         
-        let unit_direction = Vec3::unit_vector(r.direction());
-        let a = 0.5 * (unit_direction.y() + 1.0);
-        Color::new(1.0, 1.0, 1.0) * (1.0 - a) + Color::new(0.5, 0.7, 1.0) * a
+        // let unit_direction = Vec3::unit_vector(r.direction());
+        // let a = 0.5 * (unit_direction.y() + 1.0);
+        // Color::new(1.0, 1.0, 1.0) * (1.0 - a) + Color::new(0.5, 0.7, 1.0) * a
+        let ray_t = Interval::new(0.001, f64::INFINITY);
+        if let Some(rec) = world.hit(r, &ray_t) {
+            let color_from_emission = rec.mat.emitted(rec.u, rec.v, &rec.p);
+
+            if let Some((scattered, attenuation)) = rec.mat.scatter(r, &rec) {
+                let color_from_scatter = attenuation * Camera::ray_color(&scattered, world, depth - 1, background);
+                return color_from_emission + color_from_scatter;
+            } else {
+                return color_from_emission;
+            }
+        }else {
+            *background
+        }
     }
 
     pub fn new(aspect_ratio: f64, image_width: usize) -> Self {
@@ -81,6 +95,7 @@ impl Camera {
             focus_dist : 10.0,
             defocus_disk_u : Vec3::new(0.0, 0.0, 0.0),
             defocus_disk_v : Vec3::new(0.0, 0.0, 0.0),
+            background : Color::new(0.0, 0.0, 0.0),
         }
     }
 
@@ -172,7 +187,7 @@ impl Camera {
                                 let mut pixel_color = Color::new(0.0, 0.0, 0.0);
                                 for _sample in 0..cam.sample_per_pixel {
                                     let r = cam.get_ray(i, j);
-                                    pixel_color += Camera::ray_color(&r, world.as_ref(), max_depth);
+                                    pixel_color += Camera::ray_color(&r, world.as_ref(), max_depth, &self.background);
                                 }
                                 let idx = (j - y_min) * (x_max - x_min) + (i - x_min);
                                 local_buffer[idx] = cam.pixel_samples_scale * pixel_color;
