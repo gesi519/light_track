@@ -79,3 +79,24 @@ impl Interval {
     }
 }
 
+use std::ops::Add;
+
+impl Add<Interval> for f64 {
+    type Output = Interval;
+    fn add(self, rhs : Interval) -> Self::Output {
+        Interval {
+            min : self + rhs.min,
+            max : self + rhs.max,
+        }
+    }
+}
+
+impl Add<f64> for Interval {
+    type Output = Interval;
+    fn add(self, rhs : f64) -> Self::Output {
+        Interval {
+            min : self.min + rhs,
+            max : self.max + rhs,
+        }
+    }
+}

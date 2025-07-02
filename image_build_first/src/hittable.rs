@@ -1,4 +1,5 @@
 use crate::material::Material;
+use crate::rtweekend;
 use crate::vec3::{Point3,Vec3};
 use crate::ray::Ray;
 use std::sync::Arc;
@@ -75,6 +76,104 @@ impl Hittable for HittableList {
         }
 
         hit_record_result
+    }
+
+    fn bounding_box(&self) -> Aabb {
+        self.bbox.clone()
+    }
+}
+
+pub struct Translate {
+    object : Arc<dyn Hittable>,
+    offset : Vec3,
+    bbox : Aabb,
+}
+
+impl Translate {
+    pub fn new(object : Arc<dyn Hittable>, offset : Vec3) -> Self {
+        let bbox = object.bounding_box() + offset;
+        Self { object: object.clone(), offset: offset, bbox: bbox }
+    }
+}
+
+impl Hittable for Translate {
+    fn hit(&self, r : &Ray, ray_t : &Interval) -> Option<HitRecord> {
+        let offset_r = Ray::new(*r.origin() - self.offset, *r.direction(), r.time());
+
+        if let Some(mut rec) = self.object.hit(&offset_r, ray_t) {
+            rec.p += self.offset;
+            Some(rec)
+        }else {
+            None
+        }
+    }
+
+    fn bounding_box(&self) -> Aabb {
+        self.bbox.clone()
+    }
+}
+
+pub struct RotateY {
+    object : Arc<dyn Hittable>,
+    sin_theta : f64,
+    cos_theta : f64,
+    bbox : Aabb,
+}
+
+impl RotateY {
+    pub fn new(object : Arc<dyn Hittable>, angle : f64) -> Self {
+        let radians = rtweekend::degrees_to_radians(angle);
+        let sin_theta = radians.sin();
+        let cos_theta = radians.cos();
+
+        let bbox = object.bounding_box();
+        let mut min = Point3::new(rtweekend::INFINITY_F64, rtweekend::INFINITY_F64, rtweekend::INFINITY_F64);
+        let mut max = Point3::new(-rtweekend::INFINITY_F64, -rtweekend::INFINITY_F64, -rtweekend::INFINITY_F64);
+
+        for i in 0..2 {
+            let bi = i as f64;
+            for j in 0..2 {
+                let bj = j as f64;
+                for k in 0..2 {
+                    let bk = k as f64;
+                    let x = bi * bbox.x.max + (1.0 - bi) * bbox.x.min;
+                    let y = bj * bbox.y.max + (1.0 - bj) * bbox.y.min;
+                    let z = bk * bbox.z.max + (1.0 - bk) * bbox.z.min;
+
+                    let newx = cos_theta * x + sin_theta * z;
+                    let newz = -sin_theta * x + cos_theta * z;
+
+                    let tester = Vec3::new(newx, y, newz);
+                    for c in 0..3 {
+                        min[c] = min[c].min(tester[c]);
+                        max[c] = max[c].max(tester[c]);
+                    }
+                }
+            }
+        }
+
+        Self { object: object, sin_theta: sin_theta, cos_theta: cos_theta, bbox: Aabb::from_points(min, max) }
+    }
+}
+
+impl Hittable for RotateY {
+    fn hit(&self, r : &Ray, ray_t : &Interval) -> Option<HitRecord> {
+        let origin = Point3::new(self.cos_theta * r.origin().x() - self.sin_theta * r.origin().z(), 
+                                       r.origin().y(),
+                                       self.sin_theta * r.origin().x() + self.cos_theta * r.origin().z());
+        let direction = Point3::new(self.cos_theta * r.direction().x() - self.sin_theta * r.direction().z(), 
+                                          r.direction().y(),
+                                          self.sin_theta * r.direction().x() + self.cos_theta * r.direction().z());
+
+        let rotate_r = Ray::new(origin, direction, r.time());
+
+        if let Some(mut rec) = self.object.hit(&rotate_r, ray_t) {
+            rec.p = Point3::new(self.cos_theta * rec.p.x() + self.sin_theta * rec.p.z(), rec.p.y(), -self.sin_theta * rec.p.x() + self.cos_theta * rec.p.z());
+            rec.normal = Point3::new(self.cos_theta * rec.normal.x() + self.sin_theta * rec.normal.z(), rec.normal.y(), -self.sin_theta * rec.normal.x() + self.cos_theta * rec.normal.z());
+            Some(rec)
+        }else {
+            None
+        }
     }
 
     fn bounding_box(&self) -> Aabb {

@@ -1,12 +1,12 @@
 use crate::interval::Interval;
-use crate::vec3::{Point3};
+use crate::vec3::{Point3, Vec3};
 use crate::ray::Ray;
 
 #[derive(Debug, Clone)]
 pub struct Aabb {
-    x : Interval,
-    y : Interval,
-    z : Interval,
+    pub x : Interval,
+    pub y : Interval,
+    pub z : Interval,
 }
 
 impl Aabb {
@@ -144,5 +144,25 @@ impl Aabb {
             y: Interval::universe(),
             z: Interval::universe(),
         }
+    }
+}
+
+use std::ops::Add;
+
+impl Add<Vec3> for Aabb {
+    type Output = Aabb;
+    fn add(self, rhs : Vec3) -> Self::Output {
+        Aabb {
+            x: self.x + rhs.x(),
+            y: self.y + rhs.y(),
+            z: self.z + rhs.z(),
+        }
+    }
+}
+
+impl Add<Aabb> for Vec3 {
+    type Output = Aabb;
+    fn add(self, rhs : Aabb) -> Self::Output {
+        rhs + self
     }
 }
