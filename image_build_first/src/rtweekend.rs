@@ -1,12 +1,12 @@
-use std::f64::consts::PI;
 use rand::Rng;
+use std::f64::consts::PI;
 
 // 常量定义
 pub const INFINITY_F64: f64 = f64::INFINITY;
 pub const PI_F64: f64 = PI;
 
 // 工具函数
-pub fn degrees_to_radians(degrees : f64) -> f64 {
+pub fn degrees_to_radians(degrees: f64) -> f64 {
     degrees * PI / 180.0
 }
 
@@ -24,7 +24,7 @@ pub fn random_double_range(min: f64, max: f64) -> f64 {
     rng.gen_range(min..max)
 }
 
-pub fn random_int(min : usize, max : usize) -> usize {
+pub fn random_int(min: usize, max: usize) -> usize {
     let mut rng = rand::thread_rng();
     rng.gen_range(min..=max)
 }

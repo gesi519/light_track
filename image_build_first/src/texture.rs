@@ -1,27 +1,29 @@
-use std::sync::Arc;
 use std::fmt::Debug;
+use std::sync::Arc;
 
-use crate::vec3::{Color, Point3};
-use crate::rtw_image::RtwImage;
 use crate::interval::Interval;
 use crate::perlin::Perlin;
+use crate::rtw_image::RtwImage;
+use crate::vec3::{Color, Point3};
 
-pub trait Texture : Debug + Send + Sync {
+pub trait Texture: Debug + Send + Sync {
     fn value(&self, u: f64, v: f64, p: &Point3) -> Color;
 }
 
 #[derive(Debug)]
 pub struct SolidColor {
-    albedo : Color,
+    albedo: Color,
 }
 
 impl SolidColor {
-    pub fn new(color : Color) ->Self {
+    pub fn new(color: Color) -> Self {
         Self { albedo: color }
     }
 
     pub fn from_rgb(r: f64, g: f64, b: f64) -> Self {
-        Self { albedo: Color::new(r, g, b) }
+        Self {
+            albedo: Color::new(r, g, b),
+        }
     }
 }
 
@@ -33,16 +35,16 @@ impl Texture for SolidColor {
 
 #[derive(Debug)]
 pub struct CheckerTexture {
-    inv_scale : f64,
-    even : Arc<dyn Texture + Send + Sync>,
-    odd : Arc<dyn Texture + Send + Sync>,
+    inv_scale: f64,
+    even: Arc<dyn Texture + Send + Sync>,
+    odd: Arc<dyn Texture + Send + Sync>,
 }
 
 impl CheckerTexture {
     pub fn new(
-        scale : f64,
-        even : Arc<dyn Texture + Send + Sync>,
-        odd : Arc<dyn Texture + Send + Sync>,
+        scale: f64,
+        even: Arc<dyn Texture + Send + Sync>,
+        odd: Arc<dyn Texture + Send + Sync>,
     ) -> Self {
         Self {
             inv_scale: 1.0 / scale,
@@ -68,7 +70,7 @@ impl Texture for CheckerTexture {
 
         if is_even {
             self.even.value(u, v, p)
-        }else {
+        } else {
             self.odd.value(u, v, p)
         }
     }
@@ -76,12 +78,14 @@ impl Texture for CheckerTexture {
 
 #[derive(Debug)]
 pub struct ImageTexture {
-    image : RtwImage,
+    image: RtwImage,
 }
 
 impl ImageTexture {
     pub fn new(filename: &str) -> Self {
-        Self { image: RtwImage::new(filename) }
+        Self {
+            image: RtwImage::new(filename),
+        }
     }
 }
 
@@ -99,25 +103,33 @@ impl Texture for ImageTexture {
         let pixel = self.image.pixel_data(i, j);
 
         let color_scale = 1.0 / 255.0;
-        Color::new(color_scale * pixel[0] as f64, color_scale * pixel[1] as f64, color_scale * pixel[2] as f64)
+        Color::new(
+            color_scale * pixel[0] as f64,
+            color_scale * pixel[1] as f64,
+            color_scale * pixel[2] as f64,
+        )
     }
 }
 
 #[derive(Debug)]
 pub struct NoiseTexture {
-    noise : Perlin,
-    scale : f64,
+    noise: Perlin,
+    scale: f64,
 }
 
 impl NoiseTexture {
-    pub fn new(scale : f64) -> Self {
-        Self { noise : Perlin::new(), scale : scale }
+    pub fn new(scale: f64) -> Self {
+        Self {
+            noise: Perlin::new(),
+            scale: scale,
+        }
     }
 }
 
 impl Texture for NoiseTexture {
     fn value(&self, _u: f64, _v: f64, p: &Point3) -> Color {
         //  Color::new(1.0, 1.0, 1.0) * self.noise.trub(p, 7)
-        Color::new(0.5, 0.5, 0.5) * (1.0 + (self.scale * p.z() + 10.0 * self.noise.trub(p, 7)).sin())
+        Color::new(0.5, 0.5, 0.5)
+            * (1.0 + (self.scale * p.z() + 10.0 * self.noise.trub(p, 7)).sin())
     }
 }

@@ -1,20 +1,20 @@
-use std::sync::Arc;
-use crate::vec3::{Vec3, Point3};
 use crate::AABB::Aabb;
-use crate::ray::Ray;
-use crate::interval::Interval;
 use crate::hittable::{HitRecord, Hittable, HittableList};
+use crate::interval::Interval;
 use crate::material::Material;
+use crate::ray::Ray;
+use crate::vec3::{Point3, Vec3};
+use std::sync::Arc;
 
 pub struct Quad {
-    q : Point3,
-    u : Vec3,
-    v : Vec3,
+    q: Point3,
+    u: Vec3,
+    v: Vec3,
     mat: Arc<dyn Material>,
-    bbox : Aabb,
+    bbox: Aabb,
     normal: Vec3,
     d: f64,
-    w : Vec3,
+    w: Vec3,
 }
 
 impl Quad {
@@ -24,14 +24,14 @@ impl Quad {
         let d = Vec3::dot(&normal, &q);
         let w = n / Vec3::dot(&n, &n);
         let mut quad = Self {
-            q : q,
-            u : u,
-            v : v,
-            mat : mat,
-            bbox: Aabb::empty(), 
-            normal : normal,
-            d : d,
-            w : w,
+            q: q,
+            u: u,
+            v: v,
+            mat: mat,
+            bbox: Aabb::empty(),
+            normal: normal,
+            d: d,
+            w: w,
         };
         quad.set_bounding_box();
         quad
@@ -60,37 +60,59 @@ impl Quad {
         true
     }
 
-    pub fn make_box(a : &Point3, b : &Point3, mat: Arc<dyn Material>) -> Arc<HittableList> {
+    pub fn make_box(a: &Point3, b: &Point3, mat: Arc<dyn Material>) -> Arc<HittableList> {
         let mut sides = HittableList::new();
 
-        let min = Point3::new(
-            a.x().min(b.x()),
-            a.y().min(b.y()),
-            a.z().min(b.z()),
-        );
-        let max = Point3::new(
-            a.x().max(b.x()),
-            a.y().max(b.y()),
-            a.z().max(b.z()),
-        );
+        let min = Point3::new(a.x().min(b.x()), a.y().min(b.y()), a.z().min(b.z()));
+        let max = Point3::new(a.x().max(b.x()), a.y().max(b.y()), a.z().max(b.z()));
 
         let dx = Vec3::new(max.x() - min.x(), 0.0, 0.0);
         let dy = Vec3::new(0.0, max.y() - min.y(), 0.0);
         let dz = Vec3::new(0.0, 0.0, max.z() - min.z());
 
-        sides.add(Arc::new(Quad::new(Point3::new(min.x(), min.y(), max.z()), dx, dy, mat.clone())));
-        sides.add(Arc::new(Quad::new(Point3::new(max.x(), min.y(), max.z()), -dz, dy, mat.clone())));
-        sides.add(Arc::new(Quad::new(Point3::new(max.x(), min.y(), min.z()), -dx, dy, mat.clone())));
-        sides.add(Arc::new(Quad::new(Point3::new(min.x(), min.y(), min.z()),  dz, dy, mat.clone())));
-        sides.add(Arc::new(Quad::new(Point3::new(min.x(), max.y(), max.z()), dx, -dz, mat.clone())));
-        sides.add(Arc::new(Quad::new(Point3::new(min.x(), min.y(), min.z()), dx, dz, mat)));
+        sides.add(Arc::new(Quad::new(
+            Point3::new(min.x(), min.y(), max.z()),
+            dx,
+            dy,
+            mat.clone(),
+        )));
+        sides.add(Arc::new(Quad::new(
+            Point3::new(max.x(), min.y(), max.z()),
+            -dz,
+            dy,
+            mat.clone(),
+        )));
+        sides.add(Arc::new(Quad::new(
+            Point3::new(max.x(), min.y(), min.z()),
+            -dx,
+            dy,
+            mat.clone(),
+        )));
+        sides.add(Arc::new(Quad::new(
+            Point3::new(min.x(), min.y(), min.z()),
+            dz,
+            dy,
+            mat.clone(),
+        )));
+        sides.add(Arc::new(Quad::new(
+            Point3::new(min.x(), max.y(), max.z()),
+            dx,
+            -dz,
+            mat.clone(),
+        )));
+        sides.add(Arc::new(Quad::new(
+            Point3::new(min.x(), min.y(), min.z()),
+            dx,
+            dz,
+            mat,
+        )));
 
         Arc::new(sides)
     }
 }
 
 impl Hittable for Quad {
-    fn hit(&self, r: &Ray, ray_t: &Interval) -> Option<HitRecord> {
+    fn hit<'a>(&'a self, r: &Ray, ray_t: &Interval) -> Option<HitRecord<'a>> {
         let denom = Vec3::dot(&self.normal, r.direction());
 
         if denom.abs() < 1e-8 {
@@ -108,14 +130,15 @@ impl Hittable for Quad {
         let alpha = Vec3::dot(&self.w, &Vec3::cross(&planar_hitpt_vector, &self.v));
         let beta = Vec3::dot(&self.w, &Vec3::cross(&self.u, &planar_hitpt_vector));
 
-        let mut rec = HitRecord { p : intersection,
-                                         normal : Vec3::new(0.0, 0.0, 0.0),
-                                         t : t,
-                                         front_face : true,
-                                         mat : self.mat.clone(),
-                                         u : 0.0,
-                                         v : 0.0,
-                                    };
+        let mut rec = HitRecord {
+            p: intersection,
+            normal: Vec3::new(0.0, 0.0, 0.0),
+            t: t,
+            front_face: true,
+            mat: &*self.mat,
+            u: 0.0,
+            v: 0.0,
+        };
         if !self.is_interior(alpha, beta, &mut rec) {
             return None;
         }

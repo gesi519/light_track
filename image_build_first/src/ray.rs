@@ -1,20 +1,27 @@
-use crate::vec3::{Vec3, Point3};
+use crate::vec3::{Point3, Vec3};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Ray {
-    pub orig : Point3,
-    pub dir : Vec3,
-    tm : f64,
+    pub orig: Point3,
+    pub dir: Vec3,
+    tm: f64,
 }
 
 impl Ray {
-    
-    pub fn new(origi: Point3, direct: Vec3, timer : f64) -> Self {
-        Self { orig : origi, dir : direct , tm : timer}
+    pub fn new(origi: Point3, direct: Vec3, timer: f64) -> Self {
+        Self {
+            orig: origi,
+            dir: direct,
+            tm: timer,
+        }
     }
 
     pub fn from(origi: Point3, direct: Vec3) -> Self {
-        Self { orig : origi, dir : direct , tm : 0.0}
+        Self {
+            orig: origi,
+            dir: direct,
+            tm: 0.0,
+        }
     }
 
     pub fn origin(&self) -> &Point3 {
@@ -25,17 +32,16 @@ impl Ray {
         &self.dir
     }
 
-    pub fn at(&self, t : f64) -> Point3 {
+    pub fn at(&self, t: f64) -> Point3 {
         self.orig + t * self.dir
     }
 
     pub fn time(&self) -> f64 {
         self.tm
     }
-
 }
 
-pub fn hit_sphere(center : &Point3, radius : f64, r : &Ray) -> f64 {
+pub fn hit_sphere(center: &Point3, radius: f64, r: &Ray) -> f64 {
     let oc = *center - *r.origin();
     let a = Vec3::dot(r.direction(), r.direction());
     //  let b = -2.0 * Vec3::dot(*r.direction(), oc);
@@ -46,7 +52,7 @@ pub fn hit_sphere(center : &Point3, radius : f64, r : &Ray) -> f64 {
 
     if discriminant < 0.0 {
         -1.0
-    }else {
+    } else {
         //  (-b - discriminant.sqrt()) / (2.0 * a)
         (h - discriminant.sqrt()) / a
     }

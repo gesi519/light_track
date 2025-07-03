@@ -1,9 +1,10 @@
 use crate::AABB::Aabb;
-use crate::hittable::{Hittable, HittableList, HitRecord};
+use crate::hittable::{HitRecord, Hittable, HittableList};
 use std::sync::Arc;
 //  use crate::rtweekend;
-use crate::ray::Ray;
 use crate::interval::Interval;
+use crate::ray::Ray;
+use rayon::join;
 
 pub struct BvhNode {
     left: Arc<dyn Hittable + Send + Sync>,
@@ -12,17 +13,13 @@ pub struct BvhNode {
 }
 
 impl BvhNode {
-    pub fn new_from_list(list : &HittableList) -> Self {
+    pub fn new_from_list(list: &HittableList) -> Self {
         let mut objects = list.objects.clone();
         let len = objects.len();
         Self::new(&mut objects, 0, len)
     }
 
-    pub fn new(
-        objects: &mut [Arc<dyn Hittable + Send + Sync>],
-        start: usize,
-        end: usize,
-    ) -> Self {
+    pub fn new(objects: &mut [Arc<dyn Hittable + Send + Sync>], start: usize, end: usize) -> Self {
         let mut bbox = Aabb::empty();
 
         // 计算当前范围内所有对象的包围盒的包围盒（合并包围盒）
@@ -40,25 +37,33 @@ impl BvhNode {
 
         let object_span = end - start;
 
-        let (left, right) : (Arc<dyn Hittable + Send + Sync>, Arc<dyn Hittable + Send + Sync>) =
-            if object_span == 1 {
-                let object = Arc::clone(&objects[start]);
-                (Arc::clone(&object), object)
-            }else if object_span == 2 {
-                let left = Arc::clone(&objects[start]);
-                let right = Arc::clone(&objects[start + 1]);
-                (left, right)
-            }else {
-                objects[start..end].sort_by(|a, b| comparator(a, b));
-                let mid = start + object_span / 2;
-                let left = Arc::new(Self::new(objects, start, mid));
-                let right = Arc::new(Self::new(objects, mid, end));
-                (left, right)
-            };
+        let (left, right): (
+            Arc<dyn Hittable + Send + Sync>,
+            Arc<dyn Hittable + Send + Sync>,
+        ) = if object_span == 1 {
+            let object = Arc::clone(&objects[start]);
+            (Arc::clone(&object), object)
+        } else if object_span == 2 {
+            let left = Arc::clone(&objects[start]);
+            let right = Arc::clone(&objects[start + 1]);
+            (left, right)
+        } else {
+            objects[start..end].sort_by(|a, b| comparator(a, b));
+            let mid = start + object_span / 2;
 
-            bbox = Aabb::surrounding_box(&left.bounding_box(), &right.bounding_box());
+            let (left_slice, right_slice) = objects[start..end].split_at_mut(mid - start);
 
-            Self { left, right, bbox }
+            let (left, right) = rayon::join(
+                || Arc::new(Self::new(left_slice, 0, left_slice.len())),
+                || Arc::new(Self::new(right_slice, 0, right_slice.len())),
+            );
+
+            (left, right)
+        };
+
+        bbox = Aabb::surrounding_box(&left.bounding_box(), &right.bounding_box());
+
+        Self { left, right, bbox }
     }
 
     fn box_compare(
@@ -69,7 +74,10 @@ impl BvhNode {
         let a_interval = a.bounding_box().axis_interval(axis);
         let b_interval = b.bounding_box().axis_interval(axis);
 
-        a_interval.min.partial_cmp(&b_interval.min).unwrap_or(std::cmp::Ordering::Equal)
+        a_interval
+            .min
+            .partial_cmp(&b_interval.min)
+            .unwrap_or(std::cmp::Ordering::Equal)
     }
 
     /// x 轴排序
@@ -98,13 +106,13 @@ impl BvhNode {
 }
 
 impl Hittable for BvhNode {
-    fn hit(&self, r: &Ray, ray_t: &Interval) -> Option<HitRecord> {
+    fn hit<'a>(&'a self, r: &Ray, ray_t: &Interval) -> Option<HitRecord<'a>> {
         if !self.bbox.hit(r, ray_t) {
             return None;
         }
 
         let hit_left = self.left.hit(r, ray_t);
-        let hit_right = match &hit_left {
+        let hit_right = match hit_left.as_ref() {
             Some(rec) => self.right.hit(r, &Interval::new(ray_t.min, rec.t)),
             None => self.right.hit(r, ray_t),
         };

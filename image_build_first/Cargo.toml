@@ -7,3 +7,9 @@ edition = "2024"
 crossbeam = "0.8.4"
 rand = "0.8"
 image = "0.25"
+rayon = "1.8"
+anyhow = "1.0.68"
+bytemuck = { version = "1.13.1", features = ["derive"] }
+pollster = { version = "0.3", features = ["macro"] }
+winit = "0.29.1"
+wgpu = "0.19.1"

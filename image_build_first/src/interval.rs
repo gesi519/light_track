@@ -15,32 +15,30 @@
 //! - 获取区间大小
 //!
 
-use crate::{rtweekend};
-
+use crate::rtweekend;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Interval {
-    pub min : f64,
-    pub max : f64,
+    pub min: f64,
+    pub max: f64,
 }
 
 impl Interval {
-    pub fn new(min : f64, max : f64) -> Self {
-        Self {  min : min,
-                max : max
-        }
+    pub fn new(min: f64, max: f64) -> Self {
+        Self { min: min, max: max }
     }
 
-    pub const fn empty() -> Self  {
-        Self {  min : rtweekend::INFINITY_F64,
-                max : -rtweekend::INFINITY_F64
+    pub const fn empty() -> Self {
+        Self {
+            min: rtweekend::INFINITY_F64,
+            max: -rtweekend::INFINITY_F64,
         }
     }
 
     pub const fn universe() -> Self {
-        Self {  min : -rtweekend::INFINITY_F64,
-                max : rtweekend::INFINITY_F64
-
+        Self {
+            min: -rtweekend::INFINITY_F64,
+            max: rtweekend::INFINITY_F64,
         }
     }
 
@@ -48,25 +46,25 @@ impl Interval {
         self.max - self.min
     }
 
-    pub fn contains(&self, x : f64) -> bool {
+    pub fn contains(&self, x: f64) -> bool {
         self.min <= x && x <= self.max
     }
 
-    pub fn surrounds(&self, x : f64) -> bool {
+    pub fn surrounds(&self, x: f64) -> bool {
         self.min < x && x < self.max
     }
 
-    pub fn clamp(&self, x : f64) -> f64 {
+    pub fn clamp(&self, x: f64) -> f64 {
         if x < self.min {
             self.min
-        }else if x > self.max {
+        } else if x > self.max {
             self.max
-        }else {
+        } else {
             x
         }
     }
 
-    pub fn expand(&self, delta : f64) -> Interval {
+    pub fn expand(&self, delta: f64) -> Interval {
         let padding = delta / 2.0;
         Interval::new(self.min - padding, self.max + padding)
     }
@@ -83,20 +81,20 @@ use std::ops::Add;
 
 impl Add<Interval> for f64 {
     type Output = Interval;
-    fn add(self, rhs : Interval) -> Self::Output {
+    fn add(self, rhs: Interval) -> Self::Output {
         Interval {
-            min : self + rhs.min,
-            max : self + rhs.max,
+            min: self + rhs.min,
+            max: self + rhs.max,
         }
     }
 }
 
 impl Add<f64> for Interval {
     type Output = Interval;
-    fn add(self, rhs : f64) -> Self::Output {
+    fn add(self, rhs: f64) -> Self::Output {
         Interval {
-            min : self.min + rhs,
-            max : self.max + rhs,
+            min: self.min + rhs,
+            max: self.max + rhs,
         }
     }
 }

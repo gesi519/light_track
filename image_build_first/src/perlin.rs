@@ -1,11 +1,11 @@
 use crate::rtweekend;
 use crate::vec3::{Point3, Vec3};
 
-const POINT_COUNT : usize = 256;
+const POINT_COUNT: usize = 256;
 
 #[derive(Debug)]
 pub struct Perlin {
-    randvec : [Vec3; POINT_COUNT],
+    randvec: [Vec3; POINT_COUNT],
     perm_x: [usize; POINT_COUNT],
     perm_y: [usize; POINT_COUNT],
     perm_z: [usize; POINT_COUNT],
@@ -54,8 +54,8 @@ impl Perlin {
             for dj in 0..2 {
                 for dk in 0..2 {
                     let idx = self.perm_x[((i + di) & 255) as usize]
-                            ^ self.perm_y[((j + dj) & 255) as usize]
-                            ^ self.perm_z[((k + dk) & 255) as usize];
+                        ^ self.perm_y[((j + dj) & 255) as usize]
+                        ^ self.perm_z[((k + dk) & 255) as usize];
                     c[di as usize][dj as usize][dk as usize] = self.randvec[idx];
                 }
             }
@@ -121,7 +121,7 @@ impl Perlin {
         accum
     }
 
-    pub fn trub(&self, p : &Point3, depth : i32) -> f64 {
+    pub fn trub(&self, p: &Point3, depth: i32) -> f64 {
         let mut accum = 0.0;
         let mut temp_p = *p;
         let mut weight = 1.0;
