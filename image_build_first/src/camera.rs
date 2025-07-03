@@ -61,12 +61,14 @@ impl Camera {
             let color_from_emission = rec.mat.emitted(rec.u, rec.v, &rec.p);
 
             if let Some((scattered, attenuation)) = rec.mat.scatter(r, &rec) {
-                let color_from_scatter =
-                    attenuation * Camera::ray_color(&scattered, world, depth - 1, background);
-                return color_from_emission + color_from_scatter;
-            } else {
-                return color_from_emission;
+                let p = attenuation.max_component().min(0.95);
+                if rtweekend::random_double() < p {
+                    let color_from_scatter =
+                        attenuation * Camera::ray_color(&scattered, world, depth - 1, background);
+                    return color_from_emission + color_from_scatter / p;
+                }
             }
+            return color_from_emission;
         } else {
             *background
         }

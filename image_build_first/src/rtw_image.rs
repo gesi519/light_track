@@ -77,14 +77,8 @@ impl RtwImage {
 
         // 将图像转换为 RGB8 格式
         let rgb_image = img.to_rgb8();
-        //  let raw_pixels = rgb_image.into_raw();
-
-        // 将字节数据转换为浮点数据 [0.0, 1.0]
-        self.fdata.clear();
-        self.fdata.reserve_exact(self.bdata.len());
-        self.fdata
-            .extend(self.bdata.iter().map(|&b| b as f32 / 255.0));
-
+        self.bdata = rgb_image.clone().into_raw();
+        self.fdata = self.bdata.iter().map(|&b| b as f32 / 255.0).collect();
 
         true
     }
@@ -134,11 +128,8 @@ impl RtwImage {
     #[allow(dead_code)]
     fn convert_to_bytes(&mut self) {
         let total_bytes = self.image_width * self.image_height * self.bytes_per_pixel;
-        self.bdata.clear();
-        self.bdata.resize(total_bytes, 0);
-
-        for i in 0..total_bytes {
-            self.bdata[i] = Self::float_to_byte(self.fdata[i]);
-        }
+        self.bdata = self.fdata.iter().take(total_bytes)
+            .map(|&v| Self::float_to_byte(v))
+            .collect();
     }
 }

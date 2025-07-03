@@ -4,7 +4,6 @@ use std::sync::Arc;
 //  use crate::rtweekend;
 use crate::interval::Interval;
 use crate::ray::Ray;
-use rayon::join;
 
 pub struct BvhNode {
     left: Arc<dyn Hittable + Send + Sync>,

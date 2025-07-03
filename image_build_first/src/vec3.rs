@@ -113,6 +113,11 @@ impl Vec3 {
         let s = 1e-8;
         self.e[0].abs() < s && self.e[1].abs() < s && self.e[2].abs() < s
     }
+
+    pub fn max_component(&self) -> f64 {
+        self.x().max(self.y()).max(self.z())
+    }
+
 }
 
 // 类型别名

@@ -40,20 +40,21 @@ use std::time::Instant;
 //     },
 // };
 
-const WIDTH: u32 = 800;
-const HEIGHT: u32 = 600;
+// const WIDTH: u32 = 800;
+// const HEIGHT: u32 = 600;
 
-
+use pprof::ProfilerGuard;
 
 
 
 
 
 fn main() -> std::io::Result<()> {
+    // let guard = ProfilerGuard::new(100).unwrap();
     // eprintln!("Current dir: {:?}\n", std::env::current_dir().unwrap());
     let start = Instant::now();
 
-    match 7 {
+    match 9 {
         1 => bouncing_spheres(),
         2 => checker_spheres(),
         3 => earth(),
@@ -68,6 +69,10 @@ fn main() -> std::io::Result<()> {
 
     let duration = start.elapsed();
     eprintln!("运行时间: {:?}\n", duration);
+    // if let Ok(report) = guard.report().build() {
+    //     let file = std::fs::File::create("flamegraph.svg").unwrap();
+    //     report.flamegraph(file).unwrap();
+    // }
     Ok(())
 }
 

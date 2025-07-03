@@ -13,3 +13,8 @@ bytemuck = { version = "1.13.1", features = ["derive"] }
 pollster = { version = "0.3", features = ["macro"] }
 winit = "0.29.1"
 wgpu = "0.19.1"
+pprof = { version = "0.13", features = ["flamegraph"] }
+
+[profile.release]
+debug = true
+opt-level = 3
