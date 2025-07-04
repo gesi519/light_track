@@ -39,6 +39,8 @@ pub struct Camera {
     defocus_disk_u: Vec3,   //  散焦圆盘的水平半径
     defocus_disk_v: Vec3,   //  Defocus disk vertical radius
     pub background: Color,  // 场景背景
+    sqrt_spp : i32,
+    recip_sqrt_spp : f64,
 }
 
 impl Camera {
@@ -60,13 +62,20 @@ impl Camera {
         if let Some(rec) = world.hit(r, &ray_t) {
             let color_from_emission = rec.mat.emitted(rec.u, rec.v, &rec.p);
 
-            if let Some((scattered, attenuation)) = rec.mat.scatter(r, &rec) {
-                let p = attenuation.max_component().min(0.95);
-                if rtweekend::random_double() < p {
-                    let color_from_scatter =
-                        attenuation * Camera::ray_color(&scattered, world, depth - 1, background);
-                    return color_from_emission + color_from_scatter / p;
-                }
+            if let Some((scattered, attenuation, mut pdf_value)) = rec.mat.scatter(r, &rec) {
+                let scattering_pdf = rec.mat.scattering_pdf(r, &rec, &scattered);
+                pdf_value = scattering_pdf;
+                let color_from_scatter = 
+                    (scattering_pdf * attenuation * Camera::ray_color(&scattered, world, depth - 1, background)) / pdf_value;
+                return color_from_emission + color_from_scatter;
+                // let p = attenuation.max_component().min(0.95);
+                // if rtweekend::random_double() < p {
+                //     let scattering_pdf = rec.mat.scattering_pdf(r, &rec, &scattered);
+                //     pdf_value = scattering_pdf;
+                //     let color_from_scatter =
+                //         scattering_pdf * attenuation * Camera::ray_color(&scattered, world, depth - 1, background) / pdf_value;
+                //     return color_from_emission + color_from_scatter / p;
+                // }
             }
             return color_from_emission;
         } else {
@@ -98,6 +107,8 @@ impl Camera {
             defocus_disk_u: Vec3::new(0.0, 0.0, 0.0),
             defocus_disk_v: Vec3::new(0.0, 0.0, 0.0),
             background: Color::new(0.0, 0.0, 0.0),
+            sqrt_spp : 0,
+            recip_sqrt_spp : 0.0,
         }
     }
 
@@ -106,7 +117,9 @@ impl Camera {
         if self.image_height < 1 {
             self.image_height = 1;
         }
-        self.pixel_samples_scale = 1.0 / self.sample_per_pixel as f64;
+        self.sqrt_spp = (self.sample_per_pixel as f64).sqrt() as i32;
+        self.recip_sqrt_spp = 1.0 / self.sqrt_spp as f64;
+        self.pixel_samples_scale = 1.0 / (self.sqrt_spp * self.sqrt_spp) as f64;
 
         self.center = self.lookfrom;
 
@@ -196,15 +209,26 @@ impl Camera {
                         for j in y_min..y_max {
                             for i in x_min..x_max {
                                 let mut pixel_color = Color::new(0.0, 0.0, 0.0);
-                                for _sample in 0..cam.sample_per_pixel {
-                                    let r = cam.get_ray(i, j);
-                                    pixel_color += Camera::ray_color(
-                                        &r,
-                                        world.as_ref(),
-                                        max_depth,
-                                        &self.background,
-                                    );
+                                for s_j in 0..cam.sqrt_spp {
+                                    for s_i in 0..cam.sqrt_spp {
+                                        let r = cam.get_ray(i, j, s_i as usize, s_j as usize);
+                                        pixel_color += Camera::ray_color(
+                                            &r,
+                                            world.as_ref(),
+                                            max_depth,
+                                            &self.background,
+                                        );
+                                    }
                                 }
+                                // for _sample in 0..cam.sample_per_pixel {
+                                //     let r = cam.get_ray(i, j);
+                                //     pixel_color += Camera::ray_color(
+                                //         &r,
+                                //         world.as_ref(),
+                                //         max_depth,
+                                //         &self.background,
+                                //     );
+                                // }
                                 let idx = (j - y_min) * (x_max - x_min) + (i - x_min);
                                 local_buffer[idx] = cam.pixel_samples_scale * pixel_color;
                             }
@@ -235,9 +259,9 @@ impl Camera {
         Ok(())
     }
 
-    pub fn get_ray(&self, i: usize, j: usize) -> Ray {
+    pub fn get_ray(&self, i: usize, j: usize, s_i : usize, s_j : usize) -> Ray {
         // 构造一条相机射线，起点位于散焦圆盘上，方向指向像素位置 i，j 附近随机采样的点。
-        let offset: Vec3 = Camera::sample_square();
+        let offset: Vec3 = Camera::sample_square_stratified(&self, s_i, s_j);
         let pixel_sample = self.pixel00_loc
             + ((i as f64 + offset.x()) * self.pixel_delta_u)
             + ((j as f64 + offset.y()) * self.pixel_delta_v);
@@ -252,6 +276,13 @@ impl Camera {
         let ray_time = rtweekend::random_double();
 
         Ray::new(ray_origin, ray_direction, ray_time)
+    }
+
+    fn sample_square_stratified(&self, s_i : usize, s_j : usize) -> Vec3 {
+        let px = ((s_i as f64 + random_double()) * self.recip_sqrt_spp) - 0.5;
+        let py = ((s_j as f64 + random_double()) * self.recip_sqrt_spp) - 0.5;
+
+        Vec3::new(px, py, 0.0)
     }
 
     pub fn sample_square() -> Vec3 {

@@ -1,5 +1,5 @@
 use crate::interval::Interval;
-use crate::rtweekend::{self, random_double_range};
+use crate::rtweekend::{self, random_double, random_double_range};
 use std::fmt;
 use std::io::{Result, Write};
 use std::ops::{Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Sub};
@@ -116,6 +116,18 @@ impl Vec3 {
 
     pub fn max_component(&self) -> f64 {
         self.x().max(self.y()).max(self.z())
+    }
+
+    pub fn random_cosine_direction() -> Vec3 {
+        let r1 = random_double();
+        let r2 = random_double();
+
+        let phi = 2.0 * rtweekend::PI_F64 * r1;
+        let x = phi.cos() * r2.sqrt();
+        let y = phi.sin() * r2.sqrt();
+        let z = (1.0 - r2).sqrt();
+
+        Vec3::new(x, y, z)
     }
 
 }

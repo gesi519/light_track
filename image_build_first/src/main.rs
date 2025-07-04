@@ -20,6 +20,7 @@ pub mod rtw_image;
 pub mod rtweekend;
 pub mod sphere;
 pub mod texture;
+pub mod onb;
 use crate::camera::Camera;
 use crate::material::{Dielectric, DiffuseLight, Lambertian, Metal};
 
@@ -54,7 +55,7 @@ fn main() -> std::io::Result<()> {
     // eprintln!("Current dir: {:?}\n", std::env::current_dir().unwrap());
     let start = Instant::now();
 
-    match 9 {
+    match 7 {
         1 => bouncing_spheres(),
         2 => checker_spheres(),
         3 => earth(),
@@ -491,7 +492,7 @@ fn cornell_box() -> std::io::Result<()> {
 
     //  camera
     let mut cam = Camera::new(aspect_ratio, image_width);
-    cam.sample_per_pixel = 200;
+    cam.sample_per_pixel = 1000;
     cam.max_depth = 50;
     cam.background = Color::new(0.0, 0.0, 0.0);
     cam.vfov = 40.0;
