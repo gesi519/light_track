@@ -13,7 +13,7 @@ pub trait Material: Send + Sync + Debug {
         None
     }
 
-    fn emitted(&self, _u: f64, _v: f64, _p: &Point3) -> Color {
+    fn emitted(&self, _r_in: &Ray, _rec: &HitRecord, _u: f64, _v: f64, _p: &Point3) -> Color {
         Color::new(0.0, 0.0, 0.0)
     }
 
@@ -151,7 +151,10 @@ impl DiffuseLight {
 }
 
 impl Material for DiffuseLight {
-    fn emitted(&self, u: f64, v: f64, p: &Point3) -> Color {
+    fn emitted(&self, _r_in: &Ray, rec: &HitRecord, u: f64, v: f64, p: &Point3) -> Color {
+        if !rec.front_face {
+            return Color::new(0.0, 0.0, 0.0);
+        }
         self.tex.as_ref().value(u, v, p)
     }
 }

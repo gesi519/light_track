@@ -1,7 +1,7 @@
 use crate::hittable::Hittable;
 use crate::interval::Interval;
 use crate::ray::Ray;
-use crate::rtweekend::{self, random_double};
+use crate::rtweekend::{self, random_double, random_double_range};
 use crate::vec3::{Color, Point3, Vec3};
 
 use std::sync::Condvar;
@@ -60,11 +60,29 @@ impl Camera {
         // Color::new(1.0, 1.0, 1.0) * (1.0 - a) + Color::new(0.5, 0.7, 1.0) * a
         let ray_t = Interval::new(0.001, f64::INFINITY);
         if let Some(rec) = world.hit(r, &ray_t) {
-            let color_from_emission = rec.mat.emitted(rec.u, rec.v, &rec.p);
+            let color_from_emission = rec.mat.emitted(r, &rec,rec.u, rec.v, &rec.p);
 
-            if let Some((scattered, attenuation, mut pdf_value)) = rec.mat.scatter(r, &rec) {
+            if let Some((mut scattered, attenuation, mut pdf_value)) = rec.mat.scatter(r, &rec) {
+                let on_light = Point3::new(random_double_range(213.0, 343.0), 554.0, random_double_range(227.0, 332.0));
+                let mut to_light = on_light - rec.p;
+                let distance_area = to_light.length_squared();
+                to_light = Vec3::unit_vector(&to_light);
+
+                if Vec3::dot(&to_light, &rec.normal) < 0.0 {
+                    return color_from_emission;
+                }
+
+                let light_area = (343.0 - 213.0) * (332.0 - 227.0);
+                let light_cosine = to_light.y().abs();
+                if light_cosine < 0.000001 {
+                    return color_from_emission;
+                }
+
+                pdf_value = distance_area / (light_cosine * light_area);
+                scattered = Ray::new(rec.p, to_light, r.time());
+
                 let scattering_pdf = rec.mat.scattering_pdf(r, &rec, &scattered);
-                pdf_value = scattering_pdf;
+
                 let color_from_scatter = 
                     (scattering_pdf * attenuation * Camera::ray_color(&scattered, world, depth - 1, background)) / pdf_value;
                 return color_from_emission + color_from_scatter;
