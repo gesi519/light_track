@@ -521,7 +521,7 @@ fn cornell_box() -> std::io::Result<()> {
 
     //  camera
     let mut cam = Camera::new(aspect_ratio, image_width);
-    cam.sample_per_pixel = 10;
+    cam.sample_per_pixel = 1000;
     cam.max_depth = 50;
     cam.background = Color::new(0.0, 0.0, 0.0);
     cam.vfov = 40.0;

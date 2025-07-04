@@ -3,7 +3,7 @@ use crate::interval::Interval;
 use crate::ray::Ray;
 use crate::rtweekend::{self, random_double};
 use crate::vec3::{Color, Point3, Vec3};
-use crate::pdf::{Pdf, HittablePdf};
+use crate::pdf::{Pdf, HittablePdf, MixturePdf, CosinePdf};
 
 use std::sync::Condvar;
 use std::sync::atomic::AtomicUsize;
@@ -93,9 +93,19 @@ impl Camera {
                 
 
 
-                let light_pdf = HittablePdf::new(lights.clone(), rec.p);
-                scattered = Ray::new(rec.p, light_pdf.generate(), r.time());
-                pdf_value = light_pdf.value(scattered.direction());
+                // let light_pdf = HittablePdf::new(lights.clone(), rec.p);
+                // scattered = Ray::new(rec.p, light_pdf.generate(), r.time());
+                // pdf_value = light_pdf.value(scattered.direction());
+
+
+
+                let p0 = Arc::new(HittablePdf::new(lights.clone(), rec.p));
+                let p1 = Arc::new(CosinePdf::new(rec.normal));
+                let mixture_pdf = MixturePdf::new(p0, p1);
+
+                scattered = Ray::new(rec.p, mixture_pdf.generate(), r.time());
+                pdf_value = mixture_pdf.value(scattered.direction());
+
                 let scattering_pdf = rec.mat.scattering_pdf(r, &rec, &scattered);
                 let sample_color = Camera::ray_color(&scattered, world, depth - 1, background, lights);
                 let color_from_scatter = 
