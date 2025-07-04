@@ -189,3 +189,20 @@ impl Material for Isotropic {
         1.0 / (4.0 * rtweekend::PI_F64)
     }
 }
+
+#[derive(Debug)]
+pub struct EmptyMaterial;
+
+impl Material for EmptyMaterial {
+    fn scatter(&self, _r_in: &Ray, _rec: &HitRecord) -> Option<(Ray, Color, f64)> {
+        None
+    }
+
+    fn emitted(&self, _r_in: &Ray, _rec: &HitRecord, _u: f64, _v: f64, _p: &Point3) -> Color {
+        Color::new(0.0, 0.0, 0.0)
+    }
+
+    fn scattering_pdf(&self, _r_in : &Ray, _rec : &HitRecord, _scattered : &Ray) -> f64 {
+        0.0
+    }
+}

@@ -21,11 +21,12 @@ pub mod rtweekend;
 pub mod sphere;
 pub mod texture;
 pub mod onb;
+pub mod pdf;
 use crate::camera::Camera;
-use crate::material::{Dielectric, DiffuseLight, Lambertian, Metal};
+use crate::material::{Dielectric, DiffuseLight, Lambertian, Metal, EmptyMaterial};
 
 use crate::bvh::BvhNode;
-use crate::hittable::{HittableList, RotateY, Translate};
+use crate::hittable::{HittableList, RotateY, Translate, Hittable};
 use crate::quad::Quad;
 use crate::sphere::Sphere;
 use crate::texture::{CheckerTexture, ImageTexture, NoiseTexture};
@@ -54,7 +55,7 @@ fn main() -> std::io::Result<()> {
     // let guard = ProfilerGuard::new(100).unwrap();
     // eprintln!("Current dir: {:?}\n", std::env::current_dir().unwrap());
     let start = Instant::now();
-
+    
     match 7 {
         1 => bouncing_spheres(),
         2 => checker_spheres(),
@@ -158,6 +159,10 @@ fn bouncing_spheres() -> Result<(), std::io::Error> {
         material3,
     )));
 
+    let empty_material = Arc::new(EmptyMaterial {});
+    let quad_lights = Quad::new(Point3::new(343.0, 554.0, 332.0), Vec3::new(-130.0, 0.0, 0.0), Vec3::new(0.0, 0.0, -105.0), empty_material);
+    let lights : Arc<dyn Hittable + Send + Sync> = Arc::new(quad_lights);
+
     let bvh_root = Arc::new(BvhNode::new_from_list(&world));
     let world = bvh_root;
 
@@ -180,7 +185,7 @@ fn bouncing_spheres() -> Result<(), std::io::Error> {
     let stdout = stdout(); // 获取 stdout 句柄
     let writer = BufWriter::new(stdout);
     cam.initialize();
-    cam.render(world, writer)?;
+    cam.render(world, writer,lights)?;
     Ok(())
 }
 
@@ -201,6 +206,10 @@ fn checker_spheres() -> Result<(), std::io::Error> {
         10.0,
         Arc::new(Lambertian::from_texture(checker)),
     )));
+
+    let empty_material = Arc::new(EmptyMaterial {});
+    let quad_lights = Quad::new(Point3::new(343.0, 554.0, 332.0), Vec3::new(-130.0, 0.0, 0.0), Vec3::new(0.0, 0.0, -105.0), empty_material);
+    let lights : Arc<dyn Hittable + Send + Sync> = Arc::new(quad_lights);
 
     let bvh_root = Arc::new(BvhNode::new_from_list(&world));
     let world = bvh_root;
@@ -223,7 +232,7 @@ fn checker_spheres() -> Result<(), std::io::Error> {
     let stdout = stdout(); // 获取 stdout 句柄
     let writer = BufWriter::new(stdout);
     cam.initialize();
-    cam.render(world, writer)?;
+    cam.render(world, writer,lights)?;
     Ok(())
 }
 
@@ -235,6 +244,10 @@ fn earth() -> Result<(), std::io::Error> {
         2.0,
         Arc::new(Lambertian::from_texture(earth_surface)),
     )));
+
+    let empty_material = Arc::new(EmptyMaterial {});
+    let quad_lights = Quad::new(Point3::new(343.0, 554.0, 332.0), Vec3::new(-130.0, 0.0, 0.0), Vec3::new(0.0, 0.0, -105.0), empty_material);
+    let lights : Arc<dyn Hittable + Send + Sync> = Arc::new(quad_lights);
 
     let bvh_root = Arc::new(BvhNode::new_from_list(&world));
     let world = bvh_root;
@@ -257,7 +270,7 @@ fn earth() -> Result<(), std::io::Error> {
     let stdout = stdout(); // 获取 stdout 句柄
     let writer = BufWriter::new(stdout);
     cam.initialize();
-    cam.render(world, writer)?;
+    cam.render(world, writer, lights)?;
     Ok(())
 }
 
@@ -275,6 +288,10 @@ fn perlin_spheres() -> Result<(), std::io::Error> {
         2.0,
         Arc::new(Lambertian::from_texture(pertext)),
     )));
+
+    let empty_material = Arc::new(EmptyMaterial {});
+    let quad_lights = Quad::new(Point3::new(343.0, 554.0, 332.0), Vec3::new(-130.0, 0.0, 0.0), Vec3::new(0.0, 0.0, -105.0), empty_material);
+    let lights : Arc<dyn Hittable + Send + Sync> = Arc::new(quad_lights);
 
     let bvh_root = Arc::new(BvhNode::new_from_list(&world));
     let world = bvh_root;
@@ -297,7 +314,7 @@ fn perlin_spheres() -> Result<(), std::io::Error> {
     let stdout = stdout(); // 获取 stdout 句柄
     let writer = BufWriter::new(stdout);
     cam.initialize();
-    cam.render(world, writer)?;
+    cam.render(world, writer, lights)?;
     Ok(())
 }
 
@@ -341,6 +358,10 @@ fn quads() -> std::io::Result<()> {
         lower_teal,
     )));
 
+    let empty_material = Arc::new(EmptyMaterial {});
+    let quad_lights = Quad::new(Point3::new(343.0, 554.0, 332.0), Vec3::new(-130.0, 0.0, 0.0), Vec3::new(0.0, 0.0, -105.0), empty_material);
+    let lights : Arc<dyn Hittable + Send + Sync> = Arc::new(quad_lights);
+
     let bvh_root = Arc::new(BvhNode::new_from_list(&world));
     let world = bvh_root;
 
@@ -362,7 +383,7 @@ fn quads() -> std::io::Result<()> {
     let stdout = stdout(); // 获取 stdout 句柄
     let writer = BufWriter::new(stdout);
     cam.initialize();
-    cam.render(world, writer)?;
+    cam.render(world, writer, lights)?;
     Ok(())
 }
 
@@ -394,6 +415,10 @@ fn simple_light() -> std::io::Result<()> {
         difflight,
     )));
 
+    let empty_material = Arc::new(EmptyMaterial {});
+    let quad_lights = Quad::new(Point3::new(343.0, 554.0, 332.0), Vec3::new(-130.0, 0.0, 0.0), Vec3::new(0.0, 0.0, -105.0), empty_material);
+    let lights : Arc<dyn Hittable + Send + Sync> = Arc::new(quad_lights);
+
     let bvh_root = Arc::new(BvhNode::new_from_list(&world));
     let world = bvh_root;
 
@@ -415,7 +440,7 @@ fn simple_light() -> std::io::Result<()> {
     let stdout = stdout(); // 获取 stdout 句柄
     let writer = BufWriter::new(stdout);
     cam.initialize();
-    cam.render(world, writer)?;
+    cam.render(world, writer, lights)?;
     Ok(())
 }
 
@@ -484,6 +509,10 @@ fn cornell_box() -> std::io::Result<()> {
     let box2 = Arc::new(Translate::new(box2, Vec3::new(130.0, 0.0, 65.0)));
     world.add(box2);
 
+    let empty_material = Arc::new(EmptyMaterial {});
+    let quad_lights = Quad::new(Point3::new(343.0, 554.0, 332.0), Vec3::new(-130.0, 0.0, 0.0), Vec3::new(0.0, 0.0, -105.0), empty_material);
+    let lights : Arc<dyn Hittable + Send + Sync> = Arc::new(quad_lights);
+
     let bvh_root = Arc::new(BvhNode::new_from_list(&world));
     let world = bvh_root;
 
@@ -505,7 +534,7 @@ fn cornell_box() -> std::io::Result<()> {
     let stdout = stdout(); // 获取 stdout 句柄
     let writer = BufWriter::new(stdout);
     cam.initialize();
-    cam.render(world, writer)?;
+    cam.render(world, writer, lights)?;
     Ok(())
 }
 
@@ -580,6 +609,10 @@ fn cornell_smoke() -> Result<(), std::io::Error> {
         Color::new(1.0, 1.0, 1.0),
     )));
 
+    let empty_material = Arc::new(EmptyMaterial {});
+    let quad_lights = Quad::new(Point3::new(113.0, 554.0, 127.0), Vec3::new(330.0, 0.0, 0.0), Vec3::new(0.0, 0.0, 305.0), empty_material);
+    let lights : Arc<dyn Hittable + Send + Sync> = Arc::new(quad_lights);
+
     let bvh_root = Arc::new(BvhNode::new_from_list(&world));
     let world = bvh_root;
 
@@ -601,7 +634,7 @@ fn cornell_smoke() -> Result<(), std::io::Error> {
     let stdout = stdout(); // 获取 stdout 句柄
     let writer = BufWriter::new(stdout);
     cam.initialize();
-    cam.render(world, writer)?;
+    cam.render(world, writer, lights)?;
     Ok(())
 }
 
@@ -718,6 +751,10 @@ fn final_scene(
         Vec3::new(-100.0, 270.0, 395.0),
     )));
 
+    let empty_material = Arc::new(EmptyMaterial {});
+    let quad_lights = Quad::new(Point3::new(123.0, 554.0, 147.0), Vec3::new(300.0, 0.0, 0.0), Vec3::new(0.0, 0.0, 265.0), empty_material);
+    let lights : Arc<dyn Hittable + Send + Sync> = Arc::new(quad_lights);
+
     let bvh_root = Arc::new(BvhNode::new_from_list(&world));
     let world = bvh_root;
 
@@ -738,6 +775,6 @@ fn final_scene(
     let stdout = stdout(); // 获取 stdout 句柄
     let writer = BufWriter::new(stdout);
     cam.initialize();
-    cam.render(world, writer)?;
+    cam.render(world, writer, lights)?;
     Ok(())
 }

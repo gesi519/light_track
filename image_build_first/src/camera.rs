@@ -1,8 +1,9 @@
-use crate::hittable::Hittable;
+use crate::hittable::{Hittable};
 use crate::interval::Interval;
 use crate::ray::Ray;
-use crate::rtweekend::{self, random_double, random_double_range};
+use crate::rtweekend::{self, random_double};
 use crate::vec3::{Color, Point3, Vec3};
+use crate::pdf::{Pdf, HittablePdf};
 
 use std::sync::Condvar;
 use std::sync::atomic::AtomicUsize;
@@ -44,7 +45,7 @@ pub struct Camera {
 }
 
 impl Camera {
-    pub fn ray_color(r: &Ray, world: &dyn Hittable, depth: usize, background: &Color) -> Color {
+    pub fn ray_color(r: &Ray, world: &dyn Hittable, depth: usize, background: &Color, lights : Arc<dyn Hittable + Send + Sync>) -> Color {
         if depth <= 0 {
             return Color::new(0.0, 0.0, 0.0);
         }
@@ -63,29 +64,46 @@ impl Camera {
             let color_from_emission = rec.mat.emitted(r, &rec,rec.u, rec.v, &rec.p);
 
             if let Some((mut scattered, attenuation, mut pdf_value)) = rec.mat.scatter(r, &rec) {
-                let on_light = Point3::new(random_double_range(213.0, 343.0), 554.0, random_double_range(227.0, 332.0));
-                let mut to_light = on_light - rec.p;
-                let distance_area = to_light.length_squared();
-                to_light = Vec3::unit_vector(&to_light);
+                // let on_light = Point3::new(random_double_range(213.0, 343.0), 554.0, random_double_range(227.0, 332.0));
+                // let mut to_light = on_light - rec.p;
+                // let distance_area = to_light.length_squared();
+                // to_light = Vec3::unit_vector(&to_light);
 
-                if Vec3::dot(&to_light, &rec.normal) < 0.0 {
-                    return color_from_emission;
-                }
+                // if Vec3::dot(&to_light, &rec.normal) < 0.0 {
+                //     return color_from_emission;
+                // }
 
-                let light_area = (343.0 - 213.0) * (332.0 - 227.0);
-                let light_cosine = to_light.y().abs();
-                if light_cosine < 0.000001 {
-                    return color_from_emission;
-                }
+                // let light_area = (343.0 - 213.0) * (332.0 - 227.0);
+                // let light_cosine = to_light.y().abs();
+                // if light_cosine < 0.000001 {
+                //     return color_from_emission;
+                // }
 
-                pdf_value = distance_area / (light_cosine * light_area);
-                scattered = Ray::new(rec.p, to_light, r.time());
+                // pdf_value = distance_area / (light_cosine * light_area);
 
+
+
+                // let surface_pdf = CosinePdf::new(rec.normal);
+                // scattered = Ray::new(rec.p, surface_pdf.generate(), r.time());
+                // pdf_value = surface_pdf.value(scattered.direction());
+                // let scattering_pdf = rec.mat.scattering_pdf(r, &rec, &scattered);
+
+                // let color_from_scatter = 
+                //     (scattering_pdf * attenuation * Camera::ray_color(&scattered, world, depth - 1, background)) / pdf_value;
+                
+
+
+                let light_pdf = HittablePdf::new(lights.clone(), rec.p);
+                scattered = Ray::new(rec.p, light_pdf.generate(), r.time());
+                pdf_value = light_pdf.value(scattered.direction());
                 let scattering_pdf = rec.mat.scattering_pdf(r, &rec, &scattered);
-
+                let sample_color = Camera::ray_color(&scattered, world, depth - 1, background, lights);
                 let color_from_scatter = 
-                    (scattering_pdf * attenuation * Camera::ray_color(&scattered, world, depth - 1, background)) / pdf_value;
+                    (scattering_pdf * attenuation * sample_color) / pdf_value;
+
                 return color_from_emission + color_from_scatter;
+
+
                 // let p = attenuation.max_component().min(0.95);
                 // if rtweekend::random_double() < p {
                 //     let scattering_pdf = rec.mat.scattering_pdf(r, &rec, &scattered);
@@ -172,6 +190,7 @@ impl Camera {
         &self,
         world: Arc<dyn Hittable>,
         mut writer: W,
+        lights : Arc<dyn Hittable + Send + Sync>
     ) -> std::io::Result<()> {
         writeln!(writer, "P3")?;
         writeln!(writer, "{} {}", self.image_width, self.image_height)?;
@@ -211,6 +230,7 @@ impl Camera {
                     let fb = Arc::clone(&framebuffer);
                     let cam = Arc::clone(&camera_ptr);
                     let world = Arc::clone(&world);
+                    let lights = Arc::clone(&lights);
 
                     let thread_count = Arc::clone(&thread_count);
                     let thread_control_cvar = Arc::clone(&thread_control_cvar);
@@ -235,6 +255,7 @@ impl Camera {
                                             world.as_ref(),
                                             max_depth,
                                             &self.background,
+                                            lights.clone(),
                                         );
                                     }
                                 }
