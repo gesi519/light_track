@@ -5,6 +5,7 @@ use crate::material::Material;
 use crate::ray::Ray;
 use crate::vec3::{Point3, Vec3};
 use crate::{Arc, rtweekend};
+use crate::onb::Onb;
 
 pub struct Sphere {
     pub center: Ray,
@@ -54,6 +55,17 @@ impl Sphere {
 
         (phi / (2.0 * rtweekend::PI_F64), theta / rtweekend::PI_F64)
     }
+
+    fn random_to_sphere(radius : f64, distance_square : f64) -> Vec3 {
+        let r1 = rtweekend::random_double();
+        let r2 = rtweekend::random_double();
+        let z = 1.0 + r2 * ((1.0 - radius * radius / distance_square).sqrt() - 1.0);
+
+        let phi = 2.0 * rtweekend::PI_F64 * r1;
+        let x = phi.cos() * (1.0 - z * z).sqrt();
+        let y = phi.sin() * (1.0 - z * z).sqrt();
+        Vec3::new(x, y, z)
+    }
 }
 
 impl Hittable for Sphere {
@@ -101,5 +113,27 @@ impl Hittable for Sphere {
 
     fn bounding_box(&self) -> Aabb {
         self.bbox.clone()
+    }
+
+    fn pdf_value(&self, origin: &Point3, direction: &Vec3) -> f64 {
+        // 只适用于静止球体
+        let r = Ray::new(*origin, *direction, 0.0);
+        let interval = Interval::new(0.001, f64::INFINITY);
+        if let Some(_rec) = self.hit(&r, &interval) {
+            let dist_squared = (self.center.orig - *origin).length_squared();
+            let cos_theta_max = (1.0 - self.radius * self.radius / dist_squared).sqrt();
+            let solid_angle = 2.0 * rtweekend::INFINITY_F64 * (1.0 - cos_theta_max);
+
+            1.0 / solid_angle
+        }else{
+            0.0
+        }
+    }
+
+    fn random(&self, origin: &Point3) -> Vec3 {
+        let direction = self.center.at(0.0) - *origin;
+        let distance_squared = direction.length_squared();
+        let uvw = Onb::new(direction);
+        uvw.transform(&Sphere::random_to_sphere(self.radius, distance_squared))
     }
 }

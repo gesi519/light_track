@@ -3,7 +3,7 @@ use crate::interval::Interval;
 use crate::ray::Ray;
 use crate::rtweekend::{self, random_double};
 use crate::vec3::{Color, Point3, Vec3};
-use crate::pdf::{Pdf, HittablePdf, MixturePdf, CosinePdf};
+use crate::pdf::{HittablePdf, MixturePdf, Pdf};
 
 use std::sync::Condvar;
 use std::sync::atomic::AtomicUsize;
@@ -49,70 +49,31 @@ impl Camera {
         if depth <= 0 {
             return Color::new(0.0, 0.0, 0.0);
         }
-        // if let Some(rec) = world.hit(r, &Interval::new(0.001, rtweekend::INFINITY_F64)) {
-        //     if let Some((scattered, attenuation)) = rec.mat.scatter(r, &rec) {
-        //         return attenuation * Camera::ray_color(&scattered, world, depth - 1);
-        //     }
-        //     return Color::new(0.0, 0.0, 0.0);
-        // }
-
-        // let unit_direction = Vec3::unit_vector(r.direction());
-        // let a = 0.5 * (unit_direction.y() + 1.0);
-        // Color::new(1.0, 1.0, 1.0) * (1.0 - a) + Color::new(0.5, 0.7, 1.0) * a
         let ray_t = Interval::new(0.001, f64::INFINITY);
         if let Some(rec) = world.hit(r, &ray_t) {
             let color_from_emission = rec.mat.emitted(r, &rec,rec.u, rec.v, &rec.p);
 
-            if let Some((mut scattered, attenuation, mut pdf_value)) = rec.mat.scatter(r, &rec) {
-                // let on_light = Point3::new(random_double_range(213.0, 343.0), 554.0, random_double_range(227.0, 332.0));
-                // let mut to_light = on_light - rec.p;
-                // let distance_area = to_light.length_squared();
-                // to_light = Vec3::unit_vector(&to_light);
+            if let Some(srec) = rec.mat.scatter(r, &rec) {
+                if let Some(pdf) = srec.pdf_ptr.as_ref() {
+                    let light_ptr = Arc::new(HittablePdf::new(lights.clone(), rec.p));
+                    let p = Arc::new(MixturePdf::new(light_ptr, pdf.clone()));
 
-                // if Vec3::dot(&to_light, &rec.normal) < 0.0 {
-                //     return color_from_emission;
-                // }
+                    let scattered = Ray::new(rec.p, p.generate(), r.time());
+                    let pdf_value = p.value(&scattered.direction());
 
-                // let light_area = (343.0 - 213.0) * (332.0 - 227.0);
-                // let light_cosine = to_light.y().abs();
-                // if light_cosine < 0.000001 {
-                //     return color_from_emission;
-                // }
+                    let scattering_pdf = rec.mat.scattering_pdf(r, &rec, &scattered);
+                    let sample_color = Camera::ray_color(&scattered, world, depth - 1, background, lights);
+                    let color_from_scatter = 
+                        (scattering_pdf * srec.attenuation * sample_color) / pdf_value;
 
-                // pdf_value = distance_area / (light_cosine * light_area);
-
-
-
-                // let surface_pdf = CosinePdf::new(rec.normal);
-                // scattered = Ray::new(rec.p, surface_pdf.generate(), r.time());
-                // pdf_value = surface_pdf.value(scattered.direction());
-                // let scattering_pdf = rec.mat.scattering_pdf(r, &rec, &scattered);
-
-                // let color_from_scatter = 
-                //     (scattering_pdf * attenuation * Camera::ray_color(&scattered, world, depth - 1, background)) / pdf_value;
-                
-
-
-                // let light_pdf = HittablePdf::new(lights.clone(), rec.p);
-                // scattered = Ray::new(rec.p, light_pdf.generate(), r.time());
-                // pdf_value = light_pdf.value(scattered.direction());
-
-
-
-                let p0 = Arc::new(HittablePdf::new(lights.clone(), rec.p));
-                let p1 = Arc::new(CosinePdf::new(rec.normal));
-                let mixture_pdf = MixturePdf::new(p0, p1);
-
-                scattered = Ray::new(rec.p, mixture_pdf.generate(), r.time());
-                pdf_value = mixture_pdf.value(scattered.direction());
-
-                let scattering_pdf = rec.mat.scattering_pdf(r, &rec, &scattered);
-                let sample_color = Camera::ray_color(&scattered, world, depth - 1, background, lights);
-                let color_from_scatter = 
-                    (scattering_pdf * attenuation * sample_color) / pdf_value;
-
-                return color_from_emission + color_from_scatter;
-
+                    return color_from_emission + color_from_scatter;
+                }else {
+                    if let Some(pdf_ray)  = srec.skip_pdf_ray {
+                        return srec.attenuation * Camera::ray_color(&pdf_ray, world, depth - 1, background, lights);
+                    }else {
+                        return color_from_emission;
+                    }
+                }
 
                 // let p = attenuation.max_component().min(0.95);
                 // if rtweekend::random_double() < p {

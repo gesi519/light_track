@@ -88,6 +88,25 @@ impl Hittable for HittableList {
     fn bounding_box(&self) -> Aabb {
         self.bbox.clone()
     }
+
+    fn pdf_value(&self, origin: &Point3, direction: &Vec3) -> f64 {
+        if self.objects.is_empty() {
+            return 0.0;
+        }
+
+        let weight = 1.0 / self.objects.len() as f64;
+        self.objects.iter().map(|object| weight * object.pdf_value(origin, direction)).sum()
+    }
+
+    fn random(&self, origin: &Point3) -> Vec3 {
+        let len = self.objects.len();
+        if len == 0 {
+            return Vec3::new(1.0, 0.0, 0.0); // fallback direction
+        }
+
+        let idx = rtweekend::random_int(0, len - 1);
+        self.objects[idx].random(origin)
+    }
 }
 
 pub struct Translate {

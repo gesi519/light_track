@@ -491,27 +491,35 @@ fn cornell_box() -> std::io::Result<()> {
 
     // world.add(Quad::make_box(&Point3::new(130.0, 0.0, 65.0), &Point3::new(295.0, 165.0, 230.0), white.clone()));
     // world.add(Quad::make_box(&Point3::new(265.0, 0.0, 295.0), &Point3::new(430.0, 330.0, 460.0), white));
+    // let aluminum = Arc::new(Metal::new(Color::new(0.8, 0.85, 0.88), 0.0));
     let box1 = Quad::make_box(
         &Point3::new(0.0, 0.0, 0.0),
         &Point3::new(165.0, 330.0, 165.0),
-        white.clone(),
+        white,
     );
     let box1 = Arc::new(RotateY::new(box1, 15.0));
     let box1 = Arc::new(Translate::new(box1, Vec3::new(265.0, 0.0, 295.0)));
     world.add(box1);
 
-    let box2 = Quad::make_box(
-        &Point3::new(0.0, 0.0, 0.0),
-        &Point3::new(165.0, 165.0, 165.0),
-        white,
-    );
-    let box2 = Arc::new(RotateY::new(box2, -18.0));
-    let box2 = Arc::new(Translate::new(box2, Vec3::new(130.0, 0.0, 65.0)));
-    world.add(box2);
+    let glass = Arc::new(Dielectric::new(1.5));
+    world.add(Arc::new(Sphere::new_stationary(Point3::new(190.0, 90.0, 190.0), 90.0, glass)));
+
+    // let box2 = Quad::make_box(
+    //     &Point3::new(0.0, 0.0, 0.0),
+    //     &Point3::new(165.0, 165.0, 165.0),
+    //     white,
+    // );
+    // let box2 = Arc::new(RotateY::new(box2, -18.0));
+    // let box2 = Arc::new(Translate::new(box2, Vec3::new(130.0, 0.0, 65.0)));
+    // world.add(box2);
 
     let empty_material = Arc::new(EmptyMaterial {});
-    let quad_lights = Quad::new(Point3::new(343.0, 554.0, 332.0), Vec3::new(-130.0, 0.0, 0.0), Vec3::new(0.0, 0.0, -105.0), empty_material);
-    let lights : Arc<dyn Hittable + Send + Sync> = Arc::new(quad_lights);
+    let mut lights = HittableList::new();
+    lights.add(Arc::new(Quad::new(Point3::new(343.0, 554.0, 332.0), Vec3::new(-130.0, 0.0, 0.0), Vec3::new(0.0, 0.0, -105.0), empty_material.clone())));
+    lights.add(Arc::new(Sphere::new_stationary(Point3::new(190.0, 90.0, 190.0), 90.0, empty_material)));
+    // let quad_lights = Quad::new(Point3::new(343.0, 554.0, 332.0), Vec3::new(-130.0, 0.0, 0.0), Vec3::new(0.0, 0.0, -105.0), empty_material);
+    // let lights : Arc<dyn Hittable + Send + Sync> = Arc::new(quad_lights);
+    let lights : Arc<dyn Hittable + Send + Sync> = Arc::new(lights);
 
     let bvh_root = Arc::new(BvhNode::new_from_list(&world));
     let world = bvh_root;

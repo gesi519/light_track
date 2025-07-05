@@ -255,6 +255,10 @@ impl Color {
         let mut g = pixel_color.y();
         let mut b = pixel_color.z();
 
+        r = if r.is_nan() { 0.0 } else { r };
+        g = if g.is_nan() { 0.0 } else { g };
+        b = if b.is_nan() { 0.0 } else { b };
+
         r = Color::double_linear_to_gamma(r);
         g = Color::double_linear_to_gamma(g);
         b = Color::double_linear_to_gamma(b);
