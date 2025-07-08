@@ -12,8 +12,8 @@ use std::sync::{Arc, Mutex};
 
 use std::io::Write;
 
-const HEIGHT_PARTITION: usize = 32;
-const WIDTH_PARTITION: usize = 32;
+const HEIGHT_PARTITION: usize = 10;
+const WIDTH_PARTITION: usize = 10;
 const THREAD_LIMIT: usize = 24;
 
 #[derive(Clone)]
@@ -49,45 +49,88 @@ impl Camera {
         if depth <= 0 {
             return Color::new(0.0, 0.0, 0.0);
         }
+
         let ray_t = Interval::new(0.001, f64::INFINITY);
-        if let Some(rec) = world.hit(r, &ray_t) {
-            let color_from_emission = rec.mat.emitted(r, &rec,rec.u, rec.v, &rec.p);
+        let rec = match world.hit(r, &ray_t) {
+            Some(rec) => rec,
+            None => return *background,
+        };
 
-            if let Some(srec) = rec.mat.scatter(r, &rec) {
-                if let Some(pdf) = srec.pdf_ptr.as_ref() {
-                    let light_ptr = Arc::new(HittablePdf::new(lights.clone(), rec.p));
-                    let p = Arc::new(MixturePdf::new(light_ptr, pdf.clone()));
+        let color_from_emission = rec.mat.emitted(r, &rec, rec.u, rec.v, &rec.p);
 
-                    let scattered = Ray::new(rec.p, p.generate(), r.time());
-                    let pdf_value = p.value(&scattered.direction());
+        let srec = match rec.mat.scatter(r, &rec) {
+            Some(srec) => srec,
+            None => return color_from_emission, // 如果不散射，只返回自发光
+        };
 
-                    let scattering_pdf = rec.mat.scattering_pdf(r, &rec, &scattered);
-                    let sample_color = Camera::ray_color(&scattered, world, depth - 1, background, lights);
-                    let color_from_scatter = 
-                        (scattering_pdf * srec.attenuation * sample_color) / pdf_value;
-
-                    return color_from_emission + color_from_scatter;
-                }else {
-                    if let Some(pdf_ray)  = srec.skip_pdf_ray {
-                        return srec.attenuation * Camera::ray_color(&pdf_ray, world, depth - 1, background, lights);
-                    }else {
-                        return color_from_emission;
-                    }
-                }
-
-                // let p = attenuation.max_component().min(0.95);
-                // if rtweekend::random_double() < p {
-                //     let scattering_pdf = rec.mat.scattering_pdf(r, &rec, &scattered);
-                //     pdf_value = scattering_pdf;
-                //     let color_from_scatter =
-                //         scattering_pdf * attenuation * Camera::ray_color(&scattered, world, depth - 1, background) / pdf_value;
-                //     return color_from_emission + color_from_scatter / p;
-                // }
-            }
-            return color_from_emission;
-        } else {
-            *background
+        if let Some(specular_ray) = srec.skip_pdf_ray {
+            return srec.attenuation * Camera::ray_color(&specular_ray, world, depth - 1, background, lights);
         }
+
+        let mat_pdf = match srec.pdf_ptr {
+            Some(pdf) => pdf,
+            None => return color_from_emission, // 逻辑上不应该发生，但作为安全保障
+        };
+
+        let light_pdf = Arc::new(HittablePdf::new(lights.clone(), rec.p));
+        let mixture_pdf = Arc::new(MixturePdf::new(light_pdf, mat_pdf));
+
+        // 生成散射光线并计算PDF
+        let scattered = Ray::new(rec.p, mixture_pdf.generate(), r.time());
+        let pdf_value = mixture_pdf.value(&scattered.direction());
+        
+        if pdf_value.is_nan() || pdf_value <= 1e-8 {
+            return color_from_emission;
+        }
+
+        let scattering_pdf = rec.mat.scattering_pdf(r, &rec, &scattered);
+
+        // 递归计算
+        let sample_color = Camera::ray_color(&scattered, world, depth - 1, background, lights);
+        
+        // 计算最终颜色
+        let color_from_scatter = (scattering_pdf * srec.attenuation * sample_color) / pdf_value;
+
+        color_from_emission + color_from_scatter
+        // let ray_t = Interval::new(0.001, f64::INFINITY);
+        // if let Some(rec) = world.hit(r, &ray_t) {
+        //     let color_from_emission = rec.mat.emitted(r, &rec,rec.u, rec.v, &rec.p);
+
+        //     if let Some(srec) = rec.mat.scatter(r, &rec) {
+        //         if let Some(pdf) = srec.pdf_ptr.as_ref() {
+        //             let light_ptr = Arc::new(HittablePdf::new(lights.clone(), rec.p));
+        //             let p = Arc::new(MixturePdf::new(light_ptr, pdf.clone()));
+
+        //             let scattered = Ray::new(rec.p, p.generate(), r.time());
+        //             let pdf_value = p.value(&scattered.direction());
+
+        //             let scattering_pdf = rec.mat.scattering_pdf(r, &rec, &scattered);
+        //             let sample_color = Camera::ray_color(&scattered, world, depth - 1, background, lights);
+        //             let color_from_scatter = 
+        //                 (scattering_pdf * srec.attenuation * sample_color) / pdf_value;
+
+        //             return color_from_emission + color_from_scatter;
+        //         }else {
+        //             if let Some(pdf_ray)  = srec.skip_pdf_ray {
+        //                 return srec.attenuation * Camera::ray_color(&pdf_ray, world, depth - 1, background, lights);
+        //             }else {
+        //                 return color_from_emission;
+        //             }
+        //         }
+
+        //         // let p = attenuation.max_component().min(0.95);
+        //         // if rtweekend::random_double() < p {
+        //         //     let scattering_pdf = rec.mat.scattering_pdf(r, &rec, &scattered);
+        //         //     pdf_value = scattering_pdf;
+        //         //     let color_from_scatter =
+        //         //         scattering_pdf * attenuation * Camera::ray_color(&scattered, world, depth - 1, background) / pdf_value;
+        //         //     return color_from_emission + color_from_scatter / p;
+        //         // }
+        //     }
+        //     return color_from_emission;
+        // } else {
+        //     *background
+        // }
     }
 
     pub fn new(aspect_ratio: f64, image_width: usize) -> Self {

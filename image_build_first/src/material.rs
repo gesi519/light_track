@@ -9,7 +9,7 @@ use crate::rtweekend::{self, random_double};
 use crate::texture::{SolidColor, Texture};
 use crate::vec3::{Color, Point3, Vec3};
 
-pub struct  ScatterRecord {
+pub struct ScatterRecord {
     pub attenuation : Color,
     pub pdf_ptr: Option<Arc<dyn Pdf + Send + Sync>>,
     pub skip_pdf_ray: Option<Ray>,

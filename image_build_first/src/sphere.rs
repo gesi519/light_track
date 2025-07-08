@@ -122,7 +122,7 @@ impl Hittable for Sphere {
         if let Some(_rec) = self.hit(&r, &interval) {
             let dist_squared = (self.center.orig - *origin).length_squared();
             let cos_theta_max = (1.0 - self.radius * self.radius / dist_squared).sqrt();
-            let solid_angle = 2.0 * rtweekend::INFINITY_F64 * (1.0 - cos_theta_max);
+            let solid_angle = 2.0 * rtweekend::PI_F64 * (1.0 - cos_theta_max);
 
             1.0 / solid_angle
         }else{

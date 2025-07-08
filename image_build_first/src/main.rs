@@ -22,6 +22,8 @@ pub mod sphere;
 pub mod texture;
 pub mod onb;
 pub mod pdf;
+pub mod triangle;
+pub mod obj;
 use crate::camera::Camera;
 use crate::material::{Dielectric, DiffuseLight, Lambertian, Metal, EmptyMaterial};
 
@@ -30,6 +32,7 @@ use crate::hittable::{HittableList, RotateY, Translate, Hittable};
 use crate::quad::Quad;
 use crate::sphere::Sphere;
 use crate::texture::{CheckerTexture, ImageTexture, NoiseTexture};
+use crate::obj::{load_obj_vertices_faces,build_triangles};
 
 use std::time::Instant;
 
@@ -66,6 +69,7 @@ fn main() -> std::io::Result<()> {
         7 => cornell_box(),
         8 => cornell_smoke(),
         9 => final_scene(800, 10000, 40),
+        10 => triangle_one(),
         _ => final_scene(400, 250, 4),
     }?;
 
@@ -159,9 +163,8 @@ fn bouncing_spheres() -> Result<(), std::io::Error> {
         material3,
     )));
 
-    let empty_material = Arc::new(EmptyMaterial {});
-    let quad_lights = Quad::new(Point3::new(343.0, 554.0, 332.0), Vec3::new(-130.0, 0.0, 0.0), Vec3::new(0.0, 0.0, -105.0), empty_material);
-    let lights : Arc<dyn Hittable + Send + Sync> = Arc::new(quad_lights);
+    let lights = HittableList::new();
+    let lights = Arc::new(lights);
 
     let bvh_root = Arc::new(BvhNode::new_from_list(&world));
     let world = bvh_root;
@@ -416,8 +419,12 @@ fn simple_light() -> std::io::Result<()> {
     )));
 
     let empty_material = Arc::new(EmptyMaterial {});
-    let quad_lights = Quad::new(Point3::new(343.0, 554.0, 332.0), Vec3::new(-130.0, 0.0, 0.0), Vec3::new(0.0, 0.0, -105.0), empty_material);
-    let lights : Arc<dyn Hittable + Send + Sync> = Arc::new(quad_lights);
+    let quad_lights = Quad::new(Point3::new(3.0, 1.0, -2.0), Vec3::new(2.0, 0.0, 0.0), Vec3::new(0.0, 2.0, 0.0), empty_material.clone());
+    let sphere_lights = Sphere::new_stationary(Point3::new(0.0, 7.0, 0.0), 2.0, empty_material);
+    let mut lights = HittableList::new();
+    lights.add(Arc::new(quad_lights));
+    lights.add(Arc::new(sphere_lights));
+    let lights = Arc::new(lights);
 
     let bvh_root = Arc::new(BvhNode::new_from_list(&world));
     let world = bvh_root;
@@ -775,6 +782,90 @@ fn final_scene(
     cam.background = Color::new(0.0, 0.0, 0.0);
     cam.vfov = 40.0;
     cam.lookfrom = Point3::new(478.0, 278.0, -600.0);
+    cam.lookat = Point3::new(278.0, 278.0, 0.0);
+    cam.vup = Vec3::new(0.0, 1.0, 0.0);
+
+    cam.defocus_angle = 0.0;
+
+    let stdout = stdout(); // 获取 stdout 句柄
+    let writer = BufWriter::new(stdout);
+    cam.initialize();
+    cam.render(world, writer, lights)?;
+    Ok(())
+}
+
+fn triangle_one() -> std::io::Result<()> {
+    let mut world = HittableList::new();
+
+    let red = Arc::new(Lambertian::new(Color::new(0.65, 0.05, 0.05)));
+    let white = Arc::new(Lambertian::new(Color::new(0.73, 0.73, 0.73)));
+    let green = Arc::new(Lambertian::new(Color::new(0.12, 0.45, 0.15)));
+    let lignt = Arc::new(DiffuseLight::from_color(Color::new(15.0, 15.0, 15.0)));
+
+    world.add(Arc::new(Quad::new(
+        Point3::new(555.0, 0.0, 0.0),
+        Vec3::new(0.0, 555.0, 0.0),
+        Vec3::new(0.0, 0.0, 555.0),
+        green,
+    )));
+    world.add(Arc::new(Quad::new(
+        Point3::new(0.0, 0.0, 0.0),
+        Vec3::new(0.0, 555.0, 0.0),
+        Vec3::new(0.0, 0.0, 555.0),
+        red,
+    )));
+    world.add(Arc::new(Quad::new(
+        Point3::new(343.0, 554.0, 332.0),
+        Vec3::new(-130.0, 0.0, 0.0),
+        Vec3::new(0.0, 0.0, -105.0),
+        lignt,
+    )));
+    world.add(Arc::new(Quad::new(
+        Point3::new(0.0, 0.0, 0.0),
+        Vec3::new(555.0, 0.0, 0.0),
+        Vec3::new(0.0, 0.0, 555.0),
+        white.clone(),
+    )));
+    world.add(Arc::new(Quad::new(
+        Point3::new(555.0, 555.0, 555.0),
+        Vec3::new(-555.0, 0.0, 0.0),
+        Vec3::new(0.0, 0.0, -555.0),
+        white.clone(),
+    )));
+    world.add(Arc::new(Quad::new(
+        Point3::new(0.0, 0.0, 555.0),
+        Vec3::new(555.0, 0.0, 0.0),
+        Vec3::new(0.0, 555.0, 0.0),
+        white.clone(),
+    )));
+
+    let material_triangle = Arc::new(Lambertian::new(Color::new(0.7, 0.3, 0.3)));
+
+    let (vertices, faces) = load_obj_vertices_faces("OBJ_image/first_tri.obj")
+        .expect("Failed to load OBJ file");
+    let triangles = build_triangles(vertices, faces, material_triangle);
+    for tri in triangles {
+        world.add(Arc::new(tri));
+    }
+
+    let empty_material = Arc::new(EmptyMaterial {});
+    let mut lights = HittableList::new();
+    lights.add(Arc::new(Quad::new(Point3::new(343.0, 554.0, 332.0), Vec3::new(-130.0, 0.0, 0.0), Vec3::new(0.0, 0.0, -105.0), empty_material.clone())));
+    let lights : Arc<dyn Hittable + Send + Sync> = Arc::new(lights);
+
+    let bvh_root = Arc::new(BvhNode::new_from_list(&world));
+    let world = bvh_root;
+
+    let aspect_ratio: f64 = 1.0;
+    let image_width: usize = 600;
+
+    //  camera
+    let mut cam = Camera::new(aspect_ratio, image_width);
+    cam.sample_per_pixel = 1000;
+    cam.max_depth = 50;
+    cam.background = Color::new(0.0, 0.0, 0.0);
+    cam.vfov = 40.0;
+    cam.lookfrom = Point3::new(278.0, 278.0, -800.0);
     cam.lookat = Point3::new(278.0, 278.0, 0.0);
     cam.vup = Vec3::new(0.0, 1.0, 0.0);
 
