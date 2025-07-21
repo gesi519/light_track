@@ -25,13 +25,13 @@ pub mod pdf;
 pub mod triangle;
 pub mod obj;
 use crate::camera::Camera;
-use crate::material::{Dielectric, DiffuseLight, Lambertian, Metal, EmptyMaterial};
+use crate::material::{Material, Dielectric, DiffuseLight, Lambertian, Metal, EmptyMaterial};
 
 use crate::bvh::BvhNode;
 use crate::hittable::{HittableList, RotateY, Translate, Hittable};
 use crate::quad::Quad;
 use crate::sphere::Sphere;
-use crate::texture::{CheckerTexture, ImageTexture, NoiseTexture};
+use crate::texture::{CheckerTexture, ImageTexture, NoiseTexture, SolidColor};
 use crate::obj::{load_obj_vertices_faces,build_triangles};
 
 use std::time::Instant;
@@ -59,7 +59,7 @@ fn main() -> std::io::Result<()> {
     // eprintln!("Current dir: {:?}\n", std::env::current_dir().unwrap());
     let start = Instant::now();
     
-    match 7 {
+    match 12 {
         1 => bouncing_spheres(),
         2 => checker_spheres(),
         3 => earth(),
@@ -70,6 +70,8 @@ fn main() -> std::io::Result<()> {
         8 => cornell_smoke(),
         9 => final_scene(800, 10000, 40),
         10 => triangle_one(),
+        11 => stars(),
+        12 => alien_base_scene(800, 100, 5),
         _ => final_scene(400, 250, 4),
     }?;
 
@@ -875,5 +877,180 @@ fn triangle_one() -> std::io::Result<()> {
     let writer = BufWriter::new(stdout);
     cam.initialize();
     cam.render(world, writer, lights)?;
+    Ok(())
+}
+
+fn stars() -> std::io::Result<()> {
+    let mut world = HittableList::new();
+
+    // 添加太阳（发光体）
+    let sun = Arc::new(Sphere::new_stationary(
+    Point3::new(0.0, 0.0, 0.0), // 太阳放原点，方便摄像头围绕观察
+    5.0, // 更大、更亮
+    Arc::new(DiffuseLight::from_texture_lighter(Arc::new(ImageTexture::new("8k_sun.jpg")), 2.0)),
+    ));
+    world.add(sun.clone());
+
+    let mut lights = HittableList::new();
+    lights.add(sun);
+
+    // 更贴近太阳系结构的距离和大小
+    let planets = vec![
+        (8.0, 0.4, Arc::new(ImageTexture::new("8k_mercury.jpg"))),    // 水星
+        (12.0, 0.9, Arc::new(ImageTexture::new("8k_venus.jpg"))),     // 金星
+        (16.0, 1.0, Arc::new(ImageTexture::new("flat_earth.jpg"))),// 地球
+        (22.0, 0.6, Arc::new(ImageTexture::new("8k_mars.jpg"))),      // 火星
+        (32.0, 3.0, Arc::new(ImageTexture::new("8k_jupiter.jpg"))),   // 木星
+        (45.0, 2.4, Arc::new(ImageTexture::new("saturn.jpg"))),    // 土星
+        (58.0, 1.8, Arc::new(ImageTexture::new("uranus.jpg"))),    // 天王星
+        (70.0, 1.6, Arc::new(ImageTexture::new("neptune.jpg"))),   // 海王星
+    ];
+
+    for(x, radius, texture) in planets {
+        let center = Point3::new(x, 0.0, 0.0);
+        let material = Arc::new(Lambertian::from_texture(texture));
+        world.add(Arc::new(Sphere::new_stationary(center, radius, material)));
+    }
+
+    let background_texture = Arc::new(ImageTexture::new("8k_stars_milky_way.jpg"));
+    let background_material = Arc::new(DiffuseLight::from_texture_lighter(background_texture, 1.0));
+
+    // 添加一个超大背景球，中心是摄像机所在原点，法线朝内
+    world.add(Arc::new(Sphere::new_stationary(
+        Point3::new(0.0, 0.0, 0.0),  // 与摄像机位置一致
+        1000.0,
+        background_material,
+    )));
+    
+    let lights : Arc<dyn Hittable + Send + Sync> = Arc::new(lights);
+
+    let bvh_root = Arc::new(BvhNode::new_from_list(&world));
+    let world = bvh_root;
+
+    let aspect_ratio: f64 = 16.0 / 9.0;
+    let image_width: usize = 2400;
+
+    let mut cam = Camera::new(aspect_ratio, image_width);
+    cam.sample_per_pixel = 10000;
+    cam.max_depth = 100;
+    cam.background = Color::new(0.1, 0.12, 0.2);
+    cam.lookfrom = Point3::new(-5.0, 6.0, 25.0);
+    cam.lookat = Point3::new(20.0, 0.0, 0.0);
+    cam.vfov = 40.0;
+    cam.vup = Vec3::new(0.0, 1.0, 0.0);
+    cam.defocus_angle = 0.1;
+
+    let stdout = stdout();
+    let writer = BufWriter::new(stdout);
+    cam.initialize();
+    cam.render(world, writer, lights)?;
+
+    Ok(())
+
+
+}
+
+fn alien_base_scene(
+    image_width: usize,
+    sample_per_pixel: usize,
+    max_depth: usize,
+) -> Result<(), std::io::Error> {
+    let mut world = HittableList::new();
+
+    // --- 地面：黑白棋盘格 ---
+    let mut boxes1 = HittableList::new();
+    for i in 0..20 {
+        for j in 0..20 {
+            let w = 100.0;
+            let x0 = -1000.0 + i as f64 * w;
+            let z0 = -1000.0 + j as f64 * w;
+            let y0 = 0.0;
+            let x1 = x0 + w;
+            let y1 = 1.0;
+            let z1 = z0 + w;
+            let color_choice = if (i + j) % 2 == 0 { Color::new(0.8, 0.8, 0.8) } else { Color::new(0.2, 0.2, 0.2) };
+            let box_material = Arc::new(Lambertian::new(color_choice));
+            boxes1.add(Quad::make_box(&Point3::new(x0, y0, z0), &Point3::new(x1, y1, z1), box_material));
+        }
+    }
+    world.add(Arc::new(BvhNode::new_from_list(&boxes1)));
+
+    // --- 光源列表 (只有一个顶灯) ---
+    let mut hittable_lights = HittableList::new();
+
+    // 光源: 强烈的顶部主光源
+    let top_light_mat = Arc::new(DiffuseLight::from_color(Color::new(18.0, 18.0, 18.0)));
+    let top_light_quad = Arc::new(RotateY::new(
+        Arc::new(Quad::new(
+            // 将光源放在场景的右前方，以投射出朝左后方的阴影
+            Point3::new(300.0, 554.0, -150.0), Vec3::new(250.0, 0.0, 0.0), Vec3::new(0.0, 0.0, 250.0), top_light_mat
+        )),
+        10.0
+    ));
+    hittable_lights.add(top_light_quad.clone());
+    world.add(top_light_quad);
+
+    // --- 手动放置所有物体以精确匹配图片构图 ---
+
+    // 1. 前景的两个彩色立方体
+    let pink_cube_mat = Arc::new(Lambertian::new(Color::new(0.6, 0.2, 0.3)));
+    let pink_box_sides = Quad::make_box(&Point3::new(220.0, 1.0, 80.0), &Point3::new(340.0, 121.0, 200.0), pink_cube_mat);
+    world.add(Arc::new(RotateY::new(Arc::new(BvhNode::new_from_list(&pink_box_sides)), -18.0)));
+
+    let green_cube_mat = Arc::new(Lambertian::new(Color::new(0.05, 0.25, 0.08)));
+    let green_box_sides = Quad::make_box(&Point3::new(80.0, 1.0, 120.0), &Point3::new(200.0, 121.0, 240.0), green_cube_mat);
+    world.add(Arc::new(RotateY::new(Arc::new(BvhNode::new_from_list(&green_box_sides)), -18.0)));
+
+    // 2. 两个深色垂直板/墙
+    let short_wall_mat = Arc::new(Lambertian::new(Color::new(0.12, 0.12, 0.12)));
+    let short_wall_sides = Quad::make_box(&Point3::new(280.0, 1.0, 280.0), &Point3::new(330.0, 281.0, 330.0), short_wall_mat);
+    world.add(Arc::new(BvhNode::new_from_list(&short_wall_sides)));
+
+    let tall_wall_mat = Arc::new(Lambertian::new(Color::new(0.1, 0.1, 0.1)));
+    let tall_wall_sides = Quad::make_box(&Point3::new(450.0, 1.0, 200.0), &Point3::new(500.0, 401.0, 250.0), tall_wall_mat);
+    world.add(Arc::new(BvhNode::new_from_list(&tall_wall_sides)));
+
+    // 3. 右后方的地球
+    let earth_mat = Arc::new(Lambertian::from_texture(Arc::new(ImageTexture::new("earthmap.jpg"))));
+    world.add(Arc::new(Sphere::new_stationary(Point3::new(580.0, 120.0, 350.0), 120.0, earth_mat)));
+
+    // 4. 左侧高反射的蓝色金属球 (被部分切出画面)
+    let blue_metal_mat = Arc::new(Metal::new(Color::new(0.05, 0.1, 0.3), 0.02));
+    world.add(Arc::new(Sphere::new_stationary(Point3::new(50.0, 150.0, 300.0), 150.0, blue_metal_mat)));
+    
+    // 5. 上方的白色球体云
+    let mut cloud_spheres = HittableList::new();
+    let white_mat = Arc::new(Lambertian::new(Color::new(0.9, 0.9, 0.9)));
+    for _ in 0..1000 {
+        cloud_spheres.add(Arc::new(Sphere::new_stationary(Point3::random_range(0.0, 165.0), 10.0, white_mat.clone())));
+    }
+    world.add(Arc::new(Translate::new(
+        Arc::new(RotateY::new(Arc::new(BvhNode::new_from_list(&cloud_spheres)), 15.0)),
+        Vec3::new(150.0, 280.0, 400.0),
+    )));
+
+    // --- 构建BVH ---
+    let bvh_root = Arc::new(BvhNode::new_from_list(&world));
+    let world_bvh = bvh_root;
+    let lights_arc: Arc<dyn Hittable + Send + Sync> = Arc::new(hittable_lights);
+
+    // --- 相机设置 (为匹配图片而完全重设) ---
+    let mut cam = Camera::new(1.0, image_width);
+    cam.sample_per_pixel = sample_per_pixel;
+    cam.max_depth = max_depth;
+    // 纯黑背景以实现高对比度
+    cam.background = Color::new(0.0, 0.0, 0.0);
+    cam.vfov = 70.0; // 更宽的视野以实现戏剧性的透视效果
+    // 低视角，从左前方朝右后方仰视
+    cam.lookfrom = Point3::new(150.0, 60.0, -50.0);
+    cam.lookat = Point3::new(320.0, 180.0, 250.0);
+    cam.vup = Vec3::new(0.0, 1.0, 0.0);
+    cam.defocus_angle = 0.0;
+
+    // --- 渲染 ---
+    let stdout = stdout();
+    let writer = BufWriter::new(stdout);
+    cam.initialize();
+    cam.render(world_bvh, writer, lights_arc)?;
     Ok(())
 }

@@ -130,6 +130,14 @@ impl Vec3 {
         Vec3::new(x, y, z)
     }
 
+    pub fn random_range_in_cube(min: Vec3, max: Vec3) -> Vec3 {
+        Vec3::new(
+            random_double_range(min.x(), max.x()),
+            random_double_range(min.y(), max.y()),
+            random_double_range(min.z(), max.z()),
+        )
+    }
+
 }
 
 // 类型别名

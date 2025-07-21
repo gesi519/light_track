@@ -7,6 +7,7 @@ use crate::rtweekend;
 use crate::material::Material;
 use std::sync::Arc;
 
+#[warn(dead_code)]
 pub struct Triangle {
     pub v0: Point3,             // 顶点 0
     pub v1: Point3,             // 顶点 1

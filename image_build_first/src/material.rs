@@ -128,16 +128,22 @@ impl Material for Dielectric {
 #[derive(Debug)]
 pub struct DiffuseLight {
     tex: Arc<dyn Texture>,
+    bei : f64,
 }
 
 impl DiffuseLight {
     pub fn from_texture(tex: Arc<dyn Texture>) -> Self {
-        Self { tex }
+        Self { tex, bei : 1.0 }
+    }
+
+    pub fn from_texture_lighter(tex: Arc<dyn Texture>, tmp : f64) -> Self {
+        Self { tex, bei : tmp }
     }
 
     pub fn from_color(c: Color) -> Self {
         Self {
             tex: Arc::new(SolidColor::new(c)),
+            bei : 1.0,
         }
     }
 }
@@ -147,7 +153,7 @@ impl Material for DiffuseLight {
         if !rec.front_face {
             return Color::new(0.0, 0.0, 0.0);
         }
-        self.tex.as_ref().value(u, v, p)
+        self.tex.as_ref().value(u, v, p) * self.bei
     }
 }
 

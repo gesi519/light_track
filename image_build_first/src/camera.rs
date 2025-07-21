@@ -44,6 +44,26 @@ pub struct Camera {
     recip_sqrt_spp : f64,
 }
 
+#[warn(dead_code)]
+fn stars_background(ray: &Ray) -> Color {
+    let unit_direction = Vec3::unit_vector(ray.direction());
+    let t = 0.5 * (unit_direction.y() + 1.0);
+
+    // 渐变背景
+    let base = (1.0 - t) * Color::new(0.05, 0.06, 0.1) + t * Color::new(0.0, 0.0, 0.0);
+    // 星空点：根据方向向量 hash 出随机亮度星点
+    let hash = (unit_direction.x() * 12.9898 + unit_direction.y() * 78.233 + unit_direction.z() * 37.719).sin() * 43758.5453;
+    let brightness = hash.fract();
+
+    // 稀疏性调节（只有 brightness 高于某个阈值才发光）
+    if brightness > 0.99 { // 降低阈值，更多星点
+        let star_intensity = (brightness - 0.99) * 50.0; // 强度加倍
+        base + Color::new(star_intensity, star_intensity, star_intensity)
+    }else {
+        base
+    }
+}
+
 impl Camera {
     pub fn ray_color(r: &Ray, world: &dyn Hittable, depth: usize, background: &Color, lights : Arc<dyn Hittable + Send + Sync>) -> Color {
         if depth <= 0 {
