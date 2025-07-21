@@ -71,7 +71,7 @@ fn main() -> std::io::Result<()> {
         9 => final_scene(800, 10000, 40),
         10 => triangle_one(),
         11 => stars(),
-        12 => alien_base_scene(800, 100, 5),
+        12 => alien_base_scene(1200, 1000, 50),
         _ => final_scene(400, 250, 4),
     }?;
 
@@ -957,68 +957,58 @@ fn alien_base_scene(
 ) -> Result<(), std::io::Error> {
     let mut world = HittableList::new();
 
-    // --- 地面：黑白棋盘格 ---
-    let mut boxes1 = HittableList::new();
-    for i in 0..20 {
-        for j in 0..20 {
-            let w = 100.0;
-            let x0 = -1000.0 + i as f64 * w;
-            let z0 = -1000.0 + j as f64 * w;
-            let y0 = 0.0;
-            let x1 = x0 + w;
-            let y1 = 1.0;
-            let z1 = z0 + w;
-            let color_choice = if (i + j) % 2 == 0 { Color::new(0.8, 0.8, 0.8) } else { Color::new(0.2, 0.2, 0.2) };
-            let box_material = Arc::new(Lambertian::new(color_choice));
-            boxes1.add(Quad::make_box(&Point3::new(x0, y0, z0), &Point3::new(x1, y1, z1), box_material));
-        }
-    }
-    world.add(Arc::new(BvhNode::new_from_list(&boxes1)));
+    // --- 地面: 使用深色漫反射材质 ---
+    let ground_material = Arc::new(Lambertian::new(Color::new(0.2, 0.2, 0.2)));
+    world.add(Arc::new(Sphere::new_stationary(Point3::new(0.0, -1000.0, 0.0), 1000.0, ground_material)));
 
-    // --- 光源列表 (只有一个顶灯) ---
+    // --- 光源列表 ---
     let mut hittable_lights = HittableList::new();
 
-    // 光源: 强烈的顶部主光源
-    let top_light_mat = Arc::new(DiffuseLight::from_color(Color::new(18.0, 18.0, 18.0)));
-    let top_light_quad = Arc::new(RotateY::new(
-        Arc::new(Quad::new(
-            // 将光源放在场景的右前方，以投射出朝左后方的阴影
-            Point3::new(300.0, 554.0, -150.0), Vec3::new(250.0, 0.0, 0.0), Vec3::new(0.0, 0.0, 250.0), top_light_mat
-        )),
-        10.0
+    // 光源1: 顶部明亮的白色主光源
+    let top_light_mat = Arc::new(DiffuseLight::from_color(Color::new(15.0, 15.0, 15.0)));
+    let top_light_quad = Arc::new(Quad::new(
+        Point3::new(250.0, 500.0, 250.0), Vec3::new(200.0, 0.0, 0.0), Vec3::new(0.0, 0.0, 200.0), top_light_mat
     ));
     hittable_lights.add(top_light_quad.clone());
     world.add(top_light_quad);
 
-    // --- 手动放置所有物体以精确匹配图片构图 ---
+    // 光源2: 带有科幻感的青色侧面光源，用于氛围补光
+    let side_light_mat = Arc::new(DiffuseLight::from_color(Color::new(2.0, 8.0, 8.0)));
+    let side_light_quad = Arc::new(Quad::new(
+        Point3::new(-300.0, 100.0, -200.0), Vec3::new(0.0, 150.0, 0.0), Vec3::new(0.0, 0.0, 150.0), side_light_mat
+    ));
+    hittable_lights.add(side_light_quad.clone());
+    world.add(side_light_quad);
 
-    // 1. 前景的两个彩色立方体
-    let pink_cube_mat = Arc::new(Lambertian::new(Color::new(0.6, 0.2, 0.3)));
-    let pink_box_sides = Quad::make_box(&Point3::new(220.0, 1.0, 80.0), &Point3::new(340.0, 121.0, 200.0), pink_cube_mat);
-    world.add(Arc::new(RotateY::new(Arc::new(BvhNode::new_from_list(&pink_box_sides)), -18.0)));
+    // --- 手动放置一系列物体，构建一个丰富且复杂的场景 ---
 
-    let green_cube_mat = Arc::new(Lambertian::new(Color::new(0.05, 0.25, 0.08)));
-    let green_box_sides = Quad::make_box(&Point3::new(80.0, 1.0, 120.0), &Point3::new(200.0, 121.0, 240.0), green_cube_mat);
-    world.add(Arc::new(RotateY::new(Arc::new(BvhNode::new_from_list(&green_box_sides)), -18.0)));
+    // 1. 中心的大型玻璃球，内部有红色烟雾
+    let boundary = Arc::new(Sphere::new_stationary(Point3::new(250.0, 150.0, 250.0), 150.0, Arc::new(Dielectric::new(1.5))));
+    world.add(boundary.clone());
+    world.add(Arc::new(ConstantMedium::new_with_color(boundary, 0.2, Color::new(0.8, 0.1, 0.1))));
 
-    // 2. 两个深色垂直板/墙
-    let short_wall_mat = Arc::new(Lambertian::new(Color::new(0.12, 0.12, 0.12)));
-    let short_wall_sides = Quad::make_box(&Point3::new(280.0, 1.0, 280.0), &Point3::new(330.0, 281.0, 330.0), short_wall_mat);
-    world.add(Arc::new(BvhNode::new_from_list(&short_wall_sides)));
+    // 2. 一个高反射的金属球，用于反射场景
+    let metal_mat = Arc::new(Metal::new(Color::new(0.8, 0.8, 0.9), 0.05));
+    world.add(Arc::new(Sphere::new_stationary(Point3::new(0.0, 100.0, 150.0), 100.0, metal_mat)));
 
-    let tall_wall_mat = Arc::new(Lambertian::new(Color::new(0.1, 0.1, 0.1)));
-    let tall_wall_sides = Quad::make_box(&Point3::new(450.0, 1.0, 200.0), &Point3::new(500.0, 401.0, 250.0), tall_wall_mat);
-    world.add(Arc::new(BvhNode::new_from_list(&tall_wall_sides)));
-
-    // 3. 右后方的地球
+    // 3. 地球仪
     let earth_mat = Arc::new(Lambertian::from_texture(Arc::new(ImageTexture::new("earthmap.jpg"))));
-    world.add(Arc::new(Sphere::new_stationary(Point3::new(580.0, 120.0, 350.0), 120.0, earth_mat)));
+    world.add(Arc::new(Sphere::new_stationary(Point3::new(500.0, 120.0, 180.0), 120.0, earth_mat)));
 
-    // 4. 左侧高反射的蓝色金属球 (被部分切出画面)
-    let blue_metal_mat = Arc::new(Metal::new(Color::new(0.05, 0.1, 0.3), 0.02));
-    world.add(Arc::new(Sphere::new_stationary(Point3::new(50.0, 150.0, 300.0), 150.0, blue_metal_mat)));
+    // 4. 一组由不同材质和大小的立方体构成的“建筑”
+    let cube1_mat = Arc::new(Lambertian::new(Color::new(0.6, 0.4, 0.1)));
+    let box1_sides = Quad::make_box(&Point3::new(0.0, 0.0, 350.0), &Point3::new(150.0, 150.0, 500.0), cube1_mat);
+    world.add(Arc::new(RotateY::new(Arc::new(BvhNode::new_from_list(&box1_sides)), 20.0)));
     
-    // 5. 上方的白色球体云
+    let cube2_mat = Arc::new(Metal::new(Color::new(0.6, 0.6, 0.6), 0.2));
+    let box2_sides = Quad::make_box(&Point3::new(400.0, 0.0, 380.0), &Point3::new(500.0, 80.0, 480.0), cube2_mat);
+    world.add(Arc::new(RotateY::new(Arc::new(BvhNode::new_from_list(&box2_sides)), -25.0)));
+    
+    // 5. 一个带有大理石花纹的球体
+    let pertext = Arc::new(NoiseTexture::new(0.1));
+    world.add(Arc::new(Sphere::new_stationary(Point3::new(220.0, 280.0, 50.0), 80.0, Arc::new(Lambertian::from_texture(pertext)))));
+    
+    // 6. 一团由许多小球组成的“星云”，放在背景中
     let mut cloud_spheres = HittableList::new();
     let white_mat = Arc::new(Lambertian::new(Color::new(0.9, 0.9, 0.9)));
     for _ in 0..1000 {
@@ -1026,7 +1016,7 @@ fn alien_base_scene(
     }
     world.add(Arc::new(Translate::new(
         Arc::new(RotateY::new(Arc::new(BvhNode::new_from_list(&cloud_spheres)), 15.0)),
-        Vec3::new(150.0, 280.0, 400.0),
+        Vec3::new(-150.0, 250.0, 300.0),
     )));
 
     // --- 构建BVH ---
@@ -1034,16 +1024,16 @@ fn alien_base_scene(
     let world_bvh = bvh_root;
     let lights_arc: Arc<dyn Hittable + Send + Sync> = Arc::new(hittable_lights);
 
-    // --- 相机设置 (为匹配图片而完全重设) ---
+    // --- 相机设置 (使用一个可靠、经典的视角) ---
     let mut cam = Camera::new(1.0, image_width);
     cam.sample_per_pixel = sample_per_pixel;
     cam.max_depth = max_depth;
-    // 纯黑背景以实现高对比度
-    cam.background = Color::new(0.0, 0.0, 0.0);
-    cam.vfov = 70.0; // 更宽的视野以实现戏剧性的透视效果
-    // 低视角，从左前方朝右后方仰视
-    cam.lookfrom = Point3::new(150.0, 60.0, -50.0);
-    cam.lookat = Point3::new(320.0, 180.0, 250.0);
+    cam.background = Color::new(0.0, 0.0, 0.0); // 纯黑背景
+    cam.vfov = 45.0;
+    
+    // 一个安全且经典的相机位置，确保在所有物体之外并能拍到全景
+    cam.lookfrom = Point3::new(478.0, 278.0, -600.0);
+    cam.lookat = Point3::new(278.0, 180.0, 200.0);
     cam.vup = Vec3::new(0.0, 1.0, 0.0);
     cam.defocus_angle = 0.0;
 
